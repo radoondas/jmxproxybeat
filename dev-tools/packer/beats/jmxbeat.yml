@@ -1,0 +1,4 @@
+beat_name: jmxbeat
+beat_url: 'https://github.com/radoondas'
+beat_repo: 'github.com/radoondas'
+beat_description: Sends jmxbeat metrics to Logstash or directly to Elasticsearch.

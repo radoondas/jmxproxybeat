@@ -1,0 +1,41 @@
+################### Jmxbeat Configuration Example #########################
+
+############################# Jmxbeat ######################################
+
+jmxbeat:
+  # Defines how often an event is sent to the output
+  period: 10s
+
+  urls: ["http://127.0.0.1:8080", "http://localhost:8080"]
+
+   # Authentication
+  authentication:
+    username: "tomcat"
+    password: "s3cret"
+
+  beans:
+    - bean:
+      name: java.lang:type=Memory
+      attributes:
+        - HeapMemoryUsage
+        - NonHeapMemoryUsage
+      keys:
+        - committed
+        - init
+        - max
+        - used
+    - bean:
+      name: java.lang:type=Runtime
+      attributes:
+        - Uptime
+        - StartTime
+    - bean:
+      name: java.lang:type=Threading
+      attributes:
+        - CurrentThreadCpuTime
+        - CurrentThreadUserTime
+        - DaemonThreadCount
+        - DaemonThreadCount
+        - ThreadCount
+        - TotalStartedThreadCount
+        - PeakThreadCount

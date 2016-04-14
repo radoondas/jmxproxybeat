@@ -1,0 +1,5 @@
+= Jmxbeat Docs
+
+Welcome to the Jmxbeat documentation.
+
+
