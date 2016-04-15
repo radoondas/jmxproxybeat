@@ -39,6 +39,63 @@ jmxbeat:
         - ThreadCount
         - TotalStartedThreadCount
         - PeakThreadCount
+    - bean:
+      name: java.lang:type=GarbageCollector,name=PS Scavenge
+      attributes:
+        - CollectionCount
+        - CollectionTime
+    - bean:
+      name: java.lang:type=GarbageCollector,name=PS MarkSweep
+      attributes:
+        - CollectionCount
+        - CollectionTime
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=ConcurrentMarkSweep
+#      attributes:
+#        - CollectionCount
+#        - CollectionTime
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=ParNew
+#      attributes:
+#        - CollectionCount
+#        - CollectionTime
+    - bean:
+      name: java.lang:type=ClassLoading
+      attributes:
+        - LoadedClassCount
+        - TotalLoadedClassCount
+        - UnloadedClassCount
+    - bean:
+      name: java.lang:type=OperatingSystem
+      attributes:
+        - AvailableProcessors
+        - CommittedVirtualMemorySize
+        - FreePhysicalMemorySize
+        - FreeSwapSpaceSize
+        - MaxFileDescriptorCount
+        - OpenFileDescriptorCount
+        - ProcessCpuLoad
+        - ProcessCpuTime
+        - SystemCpuLoad
+        - SystemLoadAverage
+        - TotalPhysicalMemorySize
+        - TotalSwapSpaceSize
+    - bean:
+      name: java.nio:type=BufferPool,name=direct
+      attributes:
+        - Count
+        - MemoryUsed
+        - TotalCapacity
+    - bean:
+      name: java.nio:type=BufferPool,name=mapped
+      attributes:
+        - Count
+        - MemoryUsed
+        - TotalCapacity
+    - bean:
+      name: java.lang:type=Compilation
+      attributes:
+        - TotalCompilationTime
 
 ###############################################################################
 ############################# Libbeat Config ##################################
