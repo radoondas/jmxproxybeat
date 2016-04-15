@@ -44,7 +44,7 @@ jmxbeat:
 ############################# Libbeat Config ##################################
 # Base config file used by all other beats for using libbeat features
 
-############################# /usr/bin/python2.6Output ##########################################
+############################# Output ##########################################
 
 # Configure what outputs to use when sending the data collected by the beat.
 # Multiple outputs may be used.
