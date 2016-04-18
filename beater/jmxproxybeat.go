@@ -9,12 +9,12 @@ import (
 	"github.com/elastic/beats/libbeat/cfgfile"
 	"github.com/elastic/beats/libbeat/logp"
 	"github.com/elastic/beats/libbeat/publisher"
-	"github.com/radoondas/jmxbeat/config"
+	"github.com/radoondas/jmxproxybeat/config"
 )
 
-const selector = "jmxbeat"
+const selector = "jmxproxybeat"
 
-type Jmxbeat struct {
+type Jmxproxybeat struct {
 	beatConfig *config.Config
 	done       chan struct{}
 	period     time.Duration
@@ -33,15 +33,15 @@ type Bean struct {
 }
 
 // Creates beater
-func New() *Jmxbeat {
-	return &Jmxbeat{
+func New() *Jmxproxybeat {
+	return &Jmxproxybeat{
 		done: make(chan struct{}),
 	}
 }
 
 /// *** Beater interface methods ***///
 
-func (bt *Jmxbeat) Config(b *beat.Beat) error {
+func (bt *Jmxproxybeat) Config(b *beat.Beat) error {
 
 	// Load beater beatConfig
 	err := cfgfile.Read(&bt.beatConfig, "")
@@ -52,25 +52,25 @@ func (bt *Jmxbeat) Config(b *beat.Beat) error {
 	return nil
 }
 
-func (bt *Jmxbeat) Setup(b *beat.Beat) error {
+func (bt *Jmxproxybeat) Setup(b *beat.Beat) error {
 
 	bt.events = b.Events
 
 	// Setting default period if not set
-	if bt.beatConfig.Jmxbeat.Period == "" {
-		bt.beatConfig.Jmxbeat.Period = "1s"
+	if bt.beatConfig.Jmxproxybeat.Period == "" {
+		bt.beatConfig.Jmxproxybeat.Period = "1s"
 	}
 
 	var err error
-	bt.period, err = time.ParseDuration(bt.beatConfig.Jmxbeat.Period)
+	bt.period, err = time.ParseDuration(bt.beatConfig.Jmxproxybeat.Period)
 	if err != nil {
 		return err
 	}
 
 	//define default URL if none provided
 	var urlConfig []string
-	if bt.beatConfig.Jmxbeat.URLs != nil {
-		urlConfig = bt.beatConfig.Jmxbeat.URLs
+	if bt.beatConfig.Jmxproxybeat.URLs != nil {
+		urlConfig = bt.beatConfig.Jmxproxybeat.URLs
 	} else {
 		urlConfig = []string{"http://127.0.0.1:8888"}
 	}
@@ -85,32 +85,32 @@ func (bt *Jmxbeat) Setup(b *beat.Beat) error {
 		bt.urls[i] = u
 	}
 
-	if bt.beatConfig.Jmxbeat.Authentication.Username == "" || bt.beatConfig.Jmxbeat.Authentication.Password == "" {
+	if bt.beatConfig.Jmxproxybeat.Authentication.Username == "" || bt.beatConfig.Jmxproxybeat.Authentication.Password == "" {
 		logp.Err("Username or password IS NOT set.")
 		bt.auth = false
 	} else {
-		bt.username = bt.beatConfig.Jmxbeat.Authentication.Username
-		bt.password = bt.beatConfig.Jmxbeat.Authentication.Password
+		bt.username = bt.beatConfig.Jmxproxybeat.Authentication.Username
+		bt.password = bt.beatConfig.Jmxproxybeat.Authentication.Password
 		bt.auth = true
 		logp.Info("Username and password IS set.")
 	}
 
-	bt.Beans = make([]Bean, len(bt.beatConfig.Jmxbeat.Beans))
-	if bt.beatConfig.Jmxbeat.Beans == nil {
+	bt.Beans = make([]Bean, len(bt.beatConfig.Jmxproxybeat.Beans))
+	if bt.beatConfig.Jmxproxybeat.Beans == nil {
 		logp.Err("No beans are configured set.")
 		//TODO: default values (HeapMemory)?
 	} else {
-		for i := 0; i < len(bt.beatConfig.Jmxbeat.Beans); i++ {
-			bt.Beans[i].Name = bt.beatConfig.Jmxbeat.Beans[i].Name
-			bt.Beans[i].Attributes = bt.beatConfig.Jmxbeat.Beans[i].Attributes
-			bt.Beans[i].Keys = bt.beatConfig.Jmxbeat.Beans[i].Keys
+		for i := 0; i < len(bt.beatConfig.Jmxproxybeat.Beans); i++ {
+			bt.Beans[i].Name = bt.beatConfig.Jmxproxybeat.Beans[i].Name
+			bt.Beans[i].Attributes = bt.beatConfig.Jmxproxybeat.Beans[i].Attributes
+			bt.Beans[i].Keys = bt.beatConfig.Jmxproxybeat.Beans[i].Keys
 
-			logp.Debug(selector, "Bean name: %s", bt.beatConfig.Jmxbeat.Beans[i].Name)
-			for j := 0; j < len(bt.beatConfig.Jmxbeat.Beans[i].Attributes); j++ {
-				logp.Debug(selector, "\tBean attribute: %s", bt.beatConfig.Jmxbeat.Beans[i].Attributes[j])
+			logp.Debug(selector, "Bean name: %s", bt.beatConfig.Jmxproxybeat.Beans[i].Name)
+			for j := 0; j < len(bt.beatConfig.Jmxproxybeat.Beans[i].Attributes); j++ {
+				logp.Debug(selector, "\tBean attribute: %s", bt.beatConfig.Jmxproxybeat.Beans[i].Attributes[j])
 			}
-			for k := 0; k < len(bt.beatConfig.Jmxbeat.Beans[i].Keys); k++ {
-				logp.Debug(selector, "\t\tAttribute key: %s", bt.beatConfig.Jmxbeat.Beans[i].Keys[k])
+			for k := 0; k < len(bt.beatConfig.Jmxproxybeat.Beans[i].Keys); k++ {
+				logp.Debug(selector, "\t\tAttribute key: %s", bt.beatConfig.Jmxproxybeat.Beans[i].Keys[k])
 			}
 		}
 	}
@@ -118,8 +118,8 @@ func (bt *Jmxbeat) Setup(b *beat.Beat) error {
 	return nil
 }
 
-func (bt *Jmxbeat) Run(b *beat.Beat) error {
-	logp.Info("jmxbeat is running! Hit CTRL-C to stop it.")
+func (bt *Jmxproxybeat) Run(b *beat.Beat) error {
+	logp.Info("Jmxproxybeat is running! Hit CTRL-C to stop it.")
 
 	//for each url
 	for _, u := range bt.urls {
@@ -147,10 +147,10 @@ func (bt *Jmxbeat) Run(b *beat.Beat) error {
 	return nil
 }
 
-func (bt *Jmxbeat) Cleanup(b *beat.Beat) error {
+func (bt *Jmxproxybeat) Cleanup(b *beat.Beat) error {
 	return nil
 }
 
-func (bt *Jmxbeat) Stop() {
+func (bt *Jmxproxybeat) Stop() {
 	close(bt.done)
 }

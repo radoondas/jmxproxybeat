@@ -46,7 +46,7 @@ env:
         The hostname as returned by the operating system on which the Beat is
         running.
 
-jmxbeat:
+jmxproxybeat:
   fields:
     - name: counter
       type: integer
@@ -56,5 +56,5 @@ jmxbeat:
 
 sections:
   - ["env", "Common"]
-  - ["jmxbeat", "Jmxbeat"]
+  - ["jmxproxybeat", "Jmxproxybeat"]
 

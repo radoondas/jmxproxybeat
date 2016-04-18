@@ -30,5 +30,5 @@
   "settings": {
     "index.refresh_interval": "5s"
   },
-  "template": "jmxbeat-*"
+  "template": "jmxproxybeat-*"
 }

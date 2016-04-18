@@ -1,5 +1,5 @@
-= Jmxbeat Docs
+= Jmxproxybeat Docs
 
-Welcome to the Jmxbeat documentation.
+Welcome to the Jmxproxybeat documentation.
 
 

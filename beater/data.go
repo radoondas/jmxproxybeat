@@ -15,7 +15,7 @@ import (
 
 const MANAGER_JMXPROXY = "/manager/jmxproxy/?get="
 
-func (bt *Jmxbeat) GetJMX(u url.URL) error {
+func (bt *Jmxproxybeat) GetJMX(u url.URL) error {
 	for i := 0; i < len(bt.Beans); i++ {
 		if len(bt.Beans[i].Keys) > 0 {
 			for j := 0; j < len(bt.Beans[i].Attributes); j++ {
@@ -37,7 +37,7 @@ func (bt *Jmxbeat) GetJMX(u url.URL) error {
 	return nil
 }
 
-func (bt *Jmxbeat) GetJMXObject(u url.URL, name, attribute, key string) error {
+func (bt *Jmxproxybeat) GetJMXObject(u url.URL, name, attribute, key string) error {
 	client := &http.Client{}
 	var jmxObject, jmxAttribute string
 	if key != "" {

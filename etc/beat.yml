@@ -1,8 +1,8 @@
-################### Jmxbeat Configuration Example #########################
+################### Jmxproxybeat Configuration Example #########################
 
-############################# Jmxbeat ######################################
+############################# Jmxproxybeat ######################################
 
-jmxbeat:
+jmxproxybeat:
   # Defines how often an event is sent to the output
   period: 10s
 

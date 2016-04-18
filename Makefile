@@ -1,4 +1,4 @@
-BEATNAME=jmxbeat
+BEATNAME=jmxproxybeat
 BEAT_DIR=github.com/radoondas
 SYSTEM_TESTS=false
 TEST_ENVIRONMENT=false
@@ -25,7 +25,7 @@ commit:
 	git commit -m "Add git settings"
 	git add .
 	git reset -- .travis.yml
-	git commit -m "Add jmxbeat"
+	git commit -m "Add jmxproxybeat"
 	git add .travis.yml
 	git commit -m "Add Travis CI"
 
