@@ -1,0 +1,36 @@
+metricbeat:
+  modules:
+    {% if redis %}
+    - module: redis
+      hosts:
+        - "{{ redis_host|default("127.0.0.1", true) }}:6379"
+      metricsets:
+        - info
+      period: 2s
+      enabled: true
+      {% if redis_include_fields %}
+      filters:
+        - include_fields:
+            fields: {{ redis_include_fields }}
+      {% endif %}
+    {% endif %}
+    {% if mysql %}
+    - module: mysql:
+      # This expects a full MySQL Data Source Name (DSN).
+      # Example: [username[:password]@][protocol[(address)]]/
+      hosts:
+        - "@tcp(127.0.0.1:3306)/"
+      metricsets:
+        - status
+      period: 5s
+      enabled: true
+    {% endif %}
+
+output:
+  file:
+    enabled: true
+    path: {{ output_file_path|default(beat.working_dir + "/output") }}
+    filename: "{{ output_file_filename|default("metricbeat") }}"
+    rotate_every_kb: 1000
+
+# vim: set ft=jinja:
