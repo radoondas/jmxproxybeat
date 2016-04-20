@@ -43,8 +43,6 @@ jmxproxybeat:
         - attribute:
           name: DaemonThreadCount
         - attribute:
-          name: DaemonThreadCount
-        - attribute:
           name: ThreadCount
         - attribute:
           name: TotalStartedThreadCount
