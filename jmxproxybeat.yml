@@ -6,7 +6,7 @@ jmxproxybeat:
   # Defines how often an event is sent to the output
   period: 10s
 
-  urls: ["http://127.0.0.1:8080", "http://localhost:8080"]
+  urls: ["http://127.0.0.1:8080"]
 
    # Authentication
   authentication:
@@ -17,8 +17,10 @@ jmxproxybeat:
     - bean:
       name: java.lang:type=Memory
       attributes:
-        - HeapMemoryUsage
-        - NonHeapMemoryUsage
+        - attribute:
+          name: HeapMemoryUsage
+        - attribute:
+          name: NonHeapMemoryUsage
       keys:
         - committed
         - init
@@ -27,75 +29,142 @@ jmxproxybeat:
     - bean:
       name: java.lang:type=Runtime
       attributes:
-        - Uptime
-        - StartTime
+        - attribute:
+          name: Uptime
+        - attribute:
+          name: StartTime
     - bean:
       name: java.lang:type=Threading
       attributes:
-        - CurrentThreadCpuTime
-        - CurrentThreadUserTime
-        - DaemonThreadCount
-        - DaemonThreadCount
-        - ThreadCount
-        - TotalStartedThreadCount
-        - PeakThreadCount
+        - attribute:
+          name: CurrentThreadCpuTime
+        - attribute:
+          name: CurrentThreadUserTime
+        - attribute:
+          name: DaemonThreadCount
+        - attribute:
+          name: DaemonThreadCount
+        - attribute:
+          name: ThreadCount
+        - attribute:
+          name: TotalStartedThreadCount
+        - attribute:
+          name: PeakThreadCount
     - bean:
       name: java.lang:type=GarbageCollector,name=PS Scavenge
       attributes:
-        - CollectionCount
-        - CollectionTime
+        - attribute:
+          name: CollectionCount
+        - attribute:
+          name: CollectionTime
+        - attribute:
+          name: LastGcInfo
+          keys:
+            - GcThreadCount
+            - duration
+            - endTime
+            - id
     - bean:
       name: java.lang:type=GarbageCollector,name=PS MarkSweep
       attributes:
-        - CollectionCount
-        - CollectionTime
-#    - bean:
-#      name: java.lang:type=GarbageCollector,name=ConcurrentMarkSweep
-#      attributes:
-#        - CollectionCount
-#        - CollectionTime
-#    - bean:
-#      name: java.lang:type=GarbageCollector,name=ParNew
-#      attributes:
-#        - CollectionCount
-#        - CollectionTime
+        - attribute:
+          name: CollectionCount
+        - attribute:
+          name: CollectionTime
+        - attribute:
+          name: LastGcInfo
+          keys:
+            - GcThreadCount
+            - duration
+            - endTime
+            - id
+    - bean:
+      name: java.lang:type=GarbageCollector,name=ConcurrentMarkSweep
+      attributes:
+        - attribute:
+           name: CollectionCount
+        - attribute:
+           name: CollectionTime
+        - attribute:
+          name: LastGcInfo
+          keys:
+            - GcThreadCount
+            - duration
+            - endTime
+            - id
+    - bean:
+      name: java.lang:type=GarbageCollector,name=ParNew
+      attributes:
+        - attribute:
+           name: CollectionCount
+        - attribute:
+           name: CollectionTime
+        - attribute:
+          name: LastGcInfo
+          keys:
+            - GcThreadCount
+            - duration
+            - endTime
+            - id
     - bean:
       name: java.lang:type=ClassLoading
       attributes:
-        - LoadedClassCount
-        - TotalLoadedClassCount
-        - UnloadedClassCount
+        - attribute:
+          name: LoadedClassCount
+        - attribute:
+          name: TotalLoadedClassCount
+        - attribute:
+          name: UnloadedClassCountuld like to inform you, that once again w
     - bean:
       name: java.lang:type=OperatingSystem
       attributes:
-        - AvailableProcessors
-        - CommittedVirtualMemorySize
-        - FreePhysicalMemorySize
-        - FreeSwapSpaceSize
-        - MaxFileDescriptorCount
-        - OpenFileDescriptorCount
-        - ProcessCpuLoad
-        - ProcessCpuTime
-        - SystemCpuLoad
-        - SystemLoadAverage
-        - TotalPhysicalMemorySize
-        - TotalSwapSpaceSize
+        - attribute:
+          name: AvailableProcessors
+        - attribute:
+          name: CommittedVirtualMemorySize
+        - attribute:
+          name: FreePhysicalMemorySize
+        - attribute:
+          name: FreeSwapSpaceSize
+        - attribute:
+          name: MaxFileDescriptorCount
+        - attribute:
+          name: OpenFileDescriptorCount
+        - attribute:
+          name: ProcessCpuLoad
+        - attribute:
+          name: ProcessCpuTime
+        - attribute:
+          name: SystemCpuLoad
+        - attribute:
+          name: SystemLoadAverage
+        - attribute:
+          name: TotalPhysicalMemorySize
+        - attribute:
+          name: TotalSwapSpaceSize
     - bean:
       name: java.nio:type=BufferPool,name=direct
       attributes:
-        - Count
-        - MemoryUsed
-        - TotalCapacity
+        - attribute:
+          name: Count
+        - attribute:
+          name: MemoryUsed
+        - attribute:
+          name: TotalCapacity
     - bean:
       name: java.nio:type=BufferPool,name=mapped
       attributes:
-        - Count
-        - MemoryUsed
-        - TotalCapacity
+        - attribute:
+          name: Count
+        - attribute:
+          name: MemoryUsed
+        - attribute:
+          name: TotalCapacity
     - bean:
       name: java.lang:type=Compilation
       attributes:
-        - TotalCompilationTime
+        - attribute:
+          name: TotalCompilationTime
 
 ###############################################################################
 ############################# Libbeat Config ##################################

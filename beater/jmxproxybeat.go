@@ -28,7 +28,7 @@ type Jmxproxybeat struct {
 
 type Bean struct {
 	Name       string
-	Attributes []string
+	Attributes []config.Attribute
 	Keys       []string
 }
 
@@ -107,10 +107,15 @@ func (bt *Jmxproxybeat) Setup(b *beat.Beat) error {
 
 			logp.Debug(selector, "Bean name: %s", bt.beatConfig.Jmxproxybeat.Beans[i].Name)
 			for j := 0; j < len(bt.beatConfig.Jmxproxybeat.Beans[i].Attributes); j++ {
-				logp.Debug(selector, "\tBean attribute: %s", bt.beatConfig.Jmxproxybeat.Beans[i].Attributes[j])
+				logp.Debug(selector, "\tBean attribute: %s", bt.beatConfig.Jmxproxybeat.Beans[i].Attributes[j].Name)
+				if len(bt.beatConfig.Jmxproxybeat.Beans[i].Attributes[j].Keys) > 0 {
+					for k := 0; k < len(bt.beatConfig.Jmxproxybeat.Beans[i].Attributes[j].Keys); k++ {
+						logp.Debug(selector, "\t\tAttribute key: %s", bt.beatConfig.Jmxproxybeat.Beans[i].Attributes[j].Keys[k])
+					}
+				}
 			}
 			for k := 0; k < len(bt.beatConfig.Jmxproxybeat.Beans[i].Keys); k++ {
-				logp.Debug(selector, "\t\tAttribute key: %s", bt.beatConfig.Jmxproxybeat.Beans[i].Keys[k])
+				logp.Debug(selector, "\tBean key: %s", bt.beatConfig.Jmxproxybeat.Beans[i].Keys[k])
 			}
 		}
 	}

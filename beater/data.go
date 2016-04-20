@@ -2,37 +2,70 @@ package beater
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/elastic/beats/libbeat/common"
 	"github.com/elastic/beats/libbeat/logp"
 )
 
-const MANAGER_JMXPROXY = "/manager/jmxproxy/?get="
+const (
+	MANAGER_JMXPROXY = "/manager/jmxproxy/?get="
+	ATTRIBUTE_URI = "&att="
+	KEY_URI = "&key="
+)
 
 func (bt *Jmxproxybeat) GetJMX(u url.URL) error {
 	for i := 0; i < len(bt.Beans); i++ {
-		if len(bt.Beans[i].Keys) > 0 {
-			for j := 0; j < len(bt.Beans[i].Attributes); j++ {
-				for k := 0; k < len(bt.Beans[i].Keys); k++ {
-					//str := bt.Beans[i].Name + "&att=" + bt.Beans[i].Attributes[j] + "&key=" + bt.Beans[i].Keys[k]
-					//logp.Info("Req: %s", str)
-					bt.GetJMXObject(u, bt.Beans[i].Name, bt.Beans[i].Attributes[j], bt.Beans[i].Keys[k])
+		for j := 0; j < len(bt.Beans[i].Attributes); j++ {
+			if len(bt.Beans[i].Attributes[j].Keys) > 0 {
+				for k := 0; k < len(bt.Beans[i].Attributes[j].Keys); k++ {
+					logp.Debug(selector, "Host: %s, request: %s", u.String(), bt.Beans[i].Name +
+					ATTRIBUTE_URI + bt.Beans[i].Attributes[j].Name +
+					KEY_URI + bt.Beans[i].Attributes[j].Keys[k])
+
+					err := bt.GetJMXObject(u, bt.Beans[i].Name, bt.Beans[i].Attributes[j].Name, bt.Beans[i].Attributes[j].Keys[k])
+					if err != nil {
+						logp.Err("Error requesting JMX for %s: %v", bt.Beans[i].Name +
+						ATTRIBUTE_URI + bt.Beans[i].Attributes[j].Name +
+						KEY_URI + bt.Beans[i].Attributes[j].Keys[k], err)
+					}
+				}
+			} else {
+				if len(bt.Beans[i].Keys) > 0 {
+					for k := 0; k < len(bt.Beans[i].Keys); k++ {
+						//str :=
+						logp.Debug(selector, "Host: %s, request: %s", u.String(), bt.Beans[i].Name +
+						ATTRIBUTE_URI + bt.Beans[i].Attributes[j].Name +
+						KEY_URI + bt.Beans[i].Keys[k])
+
+						err := bt.GetJMXObject(u, bt.Beans[i].Name, bt.Beans[i].Attributes[j].Name, bt.Beans[i].Keys[k])
+						if err != nil {
+							logp.Err("Error requesting JMX for %s: %v", bt.Beans[i].Name +
+							ATTRIBUTE_URI + bt.Beans[i].Attributes[j].Name +
+							KEY_URI + bt.Beans[i].Keys[k], err)
+						}
+					}
+
+				} else {
+					//str :=
+					logp.Debug(selector, "Host: %s, request: %s", u.String(), bt.Beans[i].Name +
+					ATTRIBUTE_URI + bt.Beans[i].Attributes[j].Name)
+
+					err := bt.GetJMXObject(u, bt.Beans[i].Name, bt.Beans[i].Attributes[j].Name, "")
+					if err != nil {
+						logp.Err("Error requesting JMX for %s: %v", bt.Beans[i].Name +
+						ATTRIBUTE_URI + bt.Beans[i].Attributes[j].Name, err)
+					}
 				}
 			}
-		} else {
-			for j := 0; j < len(bt.Beans[i].Attributes); j++ {
-				//str := bt.Beans[i].Name + "&att=" + bt.Beans[i].Attributes[j]
-				//logp.Info("Req: %s", str)
-				bt.GetJMXObject(u, bt.Beans[i].Name, bt.Beans[i].Attributes[j], "")
-			}
 		}
-
 	}
 	return nil
 }
@@ -41,10 +74,10 @@ func (bt *Jmxproxybeat) GetJMXObject(u url.URL, name, attribute, key string) err
 	client := &http.Client{}
 	var jmxObject, jmxAttribute string
 	if key != "" {
-		jmxObject = name + "&att=" + attribute + "&key=" + key
+		jmxObject = name + ATTRIBUTE_URI + attribute + KEY_URI + key
 		jmxAttribute = attribute + "." + key
 	} else {
-		jmxObject = name + "&att=" + attribute
+		jmxObject = name + ATTRIBUTE_URI + attribute
 		jmxAttribute = attribute
 	}
 
@@ -61,24 +94,25 @@ func (bt *Jmxproxybeat) GetJMXObject(u url.URL, name, attribute, key string) err
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		return fmt.Errorf("HTTP%s", res.Status)
+		return fmt.Errorf("HTTP %s", res.Status)
 	}
 
 	scanner := bufio.NewScanner(res.Body)
 	scanner.Scan()
 
-	//logp.Info("Response body: %v", scanner.Text())
 	jmxValue, err := GetJMXValue(scanner.Text())
-	//TODO: error handling
+	if err != nil {
+		return err
+	}
 
 	event := common.MapStr{
 		"@timestamp": common.Time(time.Now()),
 		"type":       "jmx",
 		"bean": common.MapStr{
-			"Name":      name,
-			"Attribute": jmxAttribute,
-			"Value":     jmxValue,
-			"hostname":   u.Host,
+			"name":      name,
+			"attribute": jmxAttribute,
+			"value":     jmxValue,
+			"hostname":  u.Host,
 		},
 	}
 	bt.events.PublishEvent(event)
@@ -90,6 +124,11 @@ func (bt *Jmxproxybeat) GetJMXObject(u url.URL, name, attribute, key string) err
 func GetJMXValue(responseBody string) (float64, error) {
 	var re *regexp.Regexp
 	var respValue float64
+
+	//logp.Debug(selector, "Response body: %s", responseBody)
+	if strings.HasPrefix(responseBody, "Error") {
+		return 0, errors.New(responseBody)
+	}
 
 	//TODO: This requires lots of tuning!!
 	re = regexp.MustCompile("= (\\d+)$")
