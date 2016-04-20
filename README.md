@@ -1,15 +1,32 @@
 # Jmxproxybeat
 
-**Welcome to Jmxproxybeat - simple GO JMX client.**
+**Welcome to Jmxproxybeat - simple beat for JMXProxyServlet for Apache Tomcat to retrieve JMX metrics.**
 
-This beat request JMX metrics from running JVM of Apache Tomcat and sends them to Logstash or Elasticsearch.
-Because Jmxproxybeat is not using JAVA, it is lightweight on the system. JMX metrics are requested through 'JMX_Proxy_servlet' configured in Tomcat for HTTP listener. The JMX Proxy Servlet is a lightweight proxy to get and set the tomcat internals.   
+This beat retrieves JMX metrics from running JVM of Apache Tomcat and sends them to Logstash or Elasticsearch.
+JMX metrics are requested via 'JMX Proxy Servlet' configured and enabled in Tomcat for HTTP listener. JMX Proxy Servlet is a lightweight proxy to get and set the Tomcat internals.
 
-http://webserver/manager/jmxproxy/?get=BEANNAME&att=MYATTRIBUTE&key=MYKEY
+Because Jmxproxybeat is not using JAVA, it is lightweight on the system and there is no need for JAVA to get JMX metrics.
 
 ## Tomcat configuration
-Tomcat [JMX Proxy servlet](https://tomcat.apache.org/tomcat-8.0-doc/manager-howto.html#Using_the_JMX_Proxy_Servlet) configuration
+General reading about Tomcat [JMX Proxy servlet](https://tomcat.apache.org/tomcat-8.0-doc/manager-howto.html#Using_the_JMX_Proxy_Servlet). 
 
+In order to enable JMX Proxy Servlet in default Tomcat package, minimal configuration in **conf/tomcat-users.xml** is required. Tomcat restart is also required.
+```xml
+<role rolename="manager-jmx"/>
+<user username="tomcat" password="s3cret" roles="manager-jmx"/>
+```
+
+Test if your Tomcat configuration works with your credentials.
+
+Template scheme of the request of the Bean:
+```
+http://127.0.0.1:8080/manager/jmxproxy/?get=BEANNAME&att=MYATTRIBUTE&key=MYKEY
+```
+
+Example of request for **HeapMemoryUsage**
+```
+http://127.0.0.1:8080/manager/jmxproxy/?get=java.lang:type=Memory&att=HeapMemoryUsage&key=init
+```
 
 ## Getting Started with Jmxproxybeat
 
@@ -21,34 +38,9 @@ Ensure that this folder is at the following location:
 * [Golang](https://golang.org/dl/) 1.6
 * [Glide](https://github.com/Masterminds/glide) >= 0.10.0
 
-### Init Project
-To get running with Jmxproxybeat, run the following command:
-
-```
-make init
-```
-
-To commit the first version before you modify it, run:
-
-```
-make commit
-```
-
-It will create a clean git history for each major step. Note that you can always rewrite the history if you wish before pushing your changes.
-
-To push Jmxproxybeat in the git repository, run the following commands:
-
-```
-git remote set-url origin https://github.com/radoondas/jmxproxybeat
-git push origin master
-```
-
-For further development, check out the [beat developer guide](https://www.elastic.co/guide/en/beats/libbeat/current/new-beat.html).
-
 ### Build
 
-To build the binary for Jmxproxybeat run the command below. This will generate a binary
-in the same directory with the name jmxproxybeat.
+To build the binary for Jmxproxybeat run the command below. This will generate a binary in the same directory with the name jmxproxybeat.
 
 ```
 make
