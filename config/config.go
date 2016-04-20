@@ -20,12 +20,12 @@ type AuthenticationConfig struct {
 }
 
 type BeanConfig struct {
-	Name       string   `yaml:"name"`
+	Name       string      `yaml:"name"`
 	Attributes []Attribute `yaml:"attributes"`
-	Keys       []string `yaml:"keys"`
+	Keys       []string    `yaml:"keys"`
 }
 
 type Attribute struct {
-	Name string `yaml:"name"`
+	Name string   `yaml:"name"`
 	Keys []string `yaml:"keys"`
 }
