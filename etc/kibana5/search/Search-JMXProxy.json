@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "columns": [
+    "_source"
+  ],
+  "hits": 0,
+  "description": "",
+  "title": "Search JMXProxy",
+  "kibanaSavedObjectMeta": {
+    "searchSourceJSON": "{\"index\":\"jmxproxybeat-*\",\"query\":{\"query_string\":{\"analyze_wildcard\":true,\"query\":\"type:jmx\"}},\"filter\":[],\"highlight\":{\"pre_tags\":[\"@kibana-highlighted-field@\"],\"post_tags\":[\"@/kibana-highlighted-field@\"],\"fields\":{\"*\":{}},\"require_field_match\":false,\"fragment_size\":2147483647}}"
+  },
+  "sort": [
+    "@timestamp",
+    "desc"
+  ]
+}

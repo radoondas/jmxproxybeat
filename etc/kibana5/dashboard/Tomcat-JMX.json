@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "uiStateJSON": "{}",
+  "timeRestore": false,
+  "description": "",
+  "title": "Jmxproxybeat - Tomcat JMX",
+  "panelsJSON": "[\n  {\n    \"id\": \"Heap-Memory\",\n    \"type\": \"visualization\",\n    \"panelIndex\": 1,\n    \"size_x\": 12,\n    \"size_y\": 2,\n    \"col\": 1,\n    \"row\": 1\n  },\n  {\n    \"id\": \"NonHeap-Memory\",\n    \"type\": \"visualization\",\n    \"panelIndex\": 2,\n    \"size_x\": 12,\n    \"size_y\": 2,\n    \"col\": 1,\n    \"row\": 3\n  },\n  {\n    \"id\": \"Threads\",\n    \"type\": \"visualization\",\n    \"panelIndex\": 3,\n    \"size_x\": 12,\n    \"size_y\": 2,\n    \"col\": 1,\n    \"row\": 5\n  }\n]",
+  "optionsJSON": "{\n  \"darkTheme\": false\n}",
+  "hits": 0,
+  "kibanaSavedObjectMeta": {
+    "searchSourceJSON": "{\n  \"filter\": [\n    {\n      \"query\": {\n        \"query_string\": {\n          \"query\": \"*\",\n          \"analyze_wildcard\": true\n        }\n      }\n    }\n  ]\n}"
+  }
+}
