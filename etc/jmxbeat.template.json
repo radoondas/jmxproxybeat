@@ -21,8 +21,8 @@
         "@timestamp": {
           "type": "date"
         },
-        "counter": {
-          "type": "integer"
+        "bean.value": {
+          "type": "float"
         }
       }
     }
