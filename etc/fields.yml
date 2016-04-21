@@ -47,14 +47,30 @@ env:
         running.
 
 jmxproxybeat:
+  type: group
+  description: >
+    Contains JMX data.
   fields:
-    - name: counter
-      type: integer
-      required: true
+    - name: bean.name
+      type: string
       description: >
-        PLEASE UPDATE DOCUMENTATION
+        Name of the Bean which is retrieved.
+
+    - name: bean.hostname
+      type: string
+      description: >
+        The hostname of JVM from which metrics are retrieved.
+
+    - name: bean.attribute
+      type: string
+      description: >
+        The name of requested attribute.
+
+    - name: bean.value
+      type: float
+      description: >
+        Value of the attribute.
 
 sections:
   - ["env", "Common"]
   - ["jmxproxybeat", "Jmxproxybeat"]
-
