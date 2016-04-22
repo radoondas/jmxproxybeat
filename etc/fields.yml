@@ -51,25 +51,31 @@ jmxproxybeat:
   description: >
     Contains JMX data.
   fields:
-    - name: bean.name
-      type: string
+    - name: bean
+      type: group
       description: >
-        Name of the Bean which is retrieved.
+        Contains metrics from JMX bean.
 
-    - name: bean.hostname
-      type: string
-      description: >
-        The hostname of JVM from which metrics are retrieved.
+      fields:
+        - name: name
+          type: string
+          description: >
+           Name of the Bean which is retrieved.
 
-    - name: bean.attribute
-      type: string
-      description: >
-        The name of requested attribute.
+        - name: hostname
+          type: string
+          description: >
+            The hostname of JVM from which metrics are retrieved.
 
-    - name: bean.value
-      type: float
-      description: >
-        Value of the attribute.
+        - name: attribute
+          type: string
+          description: >
+            The name of requested attribute.
+
+        - name: value
+          type: float
+          description: >
+            Value of the attribute.
 
 sections:
   - ["env", "Common"]
