@@ -55,6 +55,28 @@ To run Jmxproxybeat with debugging output enabled, run:
 ./jmxproxybeat -c jmxproxybeat.yml -e -d "*"
 ```
 
+### Example JSON output
+```
+{
+  "_index": "jmxproxybeat-2016.04.20",
+  "_type": "jmx",
+  "_id": "AVQ0FOGeegQ15caFDGZ7",
+  "_score": null,
+  "_source": {
+    "@timestamp": "2016-04-20T14:31:03.385Z",
+    "bean": {
+      "attribute": "MemoryUsed",
+      "hostname": "127.0.0.1:8080",
+      "name": "java.nio:type=BufferPool,name=direct",
+      "value": 81920
+    },
+    "beat": {
+      "hostname": "localhost",
+      "name": "localhost"
+    },
+    "type": "jmx"
+  }
+```
 
 ### Test
 
