@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "uiStateJSON": "{}",
-  "timeRestore": false,
-  "description": "",
+  "hits": 0,
   "title": "Jmxproxybeat - Tomcat JMX",
   "panelsJSON": "[{\"col\":1,\"id\":\"Heap-Memory\",\"panelIndex\":1,\"row\":1,\"size_x\":12,\"size_y\":2,\"type\":\"visualization\"},{\"col\":1,\"id\":\"NonHeap-Memory\",\"panelIndex\":2,\"row\":3,\"size_x\":12,\"size_y\":2,\"type\":\"visualization\"},{\"col\":1,\"id\":\"Threads\",\"panelIndex\":3,\"row\":5,\"size_x\":12,\"size_y\":2,\"type\":\"visualization\"},{\"id\":\"Classes\",\"type\":\"visualization\",\"panelIndex\":4,\"size_x\":12,\"size_y\":2,\"col\":1,\"row\":7},{\"id\":\"OS-Load\",\"type\":\"visualization\",\"panelIndex\":5,\"size_x\":12,\"size_y\":2,\"col\":1,\"row\":9},{\"id\":\"Thread-CPU\",\"type\":\"visualization\",\"panelIndex\":6,\"size_x\":12,\"size_y\":2,\"col\":1,\"row\":11}]",
   "optionsJSON": "{\"darkTheme\":false}",
-  "hits": 0,
+  "uiStateJSON": "{}",
+  "description": "",
   "kibanaSavedObjectMeta": {
     "searchSourceJSON": "{\"filter\":[{\"query\":{\"query_string\":{\"analyze_wildcard\":true,\"query\":\"*\"}}}]}"
-  }
+  },
+  "timeRestore": false
 }
