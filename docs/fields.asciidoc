@@ -65,6 +65,12 @@ Contains JMX data.
 
 
 
+=== bean Fields
+
+Contains metrics from JMX bean.
+
+
+
 ==== bean.name
 
 type: string
