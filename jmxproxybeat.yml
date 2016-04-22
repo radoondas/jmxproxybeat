@@ -112,7 +112,7 @@ jmxproxybeat:
         - attribute:
           name: TotalLoadedClassCount
         - attribute:
-          name: UnloadedClassCountuld like to inform you, that once again w
+          name: UnloadedClassCount
     - bean:
       name: java.lang:type=OperatingSystem
       attributes:
