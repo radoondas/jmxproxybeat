@@ -21,8 +21,12 @@
         "@timestamp": {
           "type": "date"
         },
-        "bean.value": {
-          "type": "float"
+        "bean": {
+          "properties": {
+            "value": {
+              "type": "float"
+            }
+          }
         }
       }
     }
