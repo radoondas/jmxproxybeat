@@ -80,7 +80,7 @@ To run Jmxproxybeat with debugging output enabled, run:
   }
 ```
 
-### Test
+### Test - not complete yet
 
 To test Jmxproxybeat, run the following command:
 
@@ -99,7 +99,7 @@ make coverage-report
 The test coverage is reported in the folder `./build/coverage/`
 
 
-### Package
+### Package - not complete yet
 
 To be able to package Jmxproxybeat the requirements are as follows:
 
