@@ -1,5 +1,5 @@
-hash: 0cd57894be9903f95f4630c425c6477d09c966451033b61f13cd9fb0eedbf336
-updated: 2016-04-19T00:21:59.500843322+02:00
+hash: e5e55e9c55452ce8fbe546d16a5ae6c7458fd78cba8c8dbad9ec7ec901dfd7fd
+updated: 2016-04-24T16:03:55.276061637+02:00
 imports:
 - name: github.com/dustin/go-humanize
   version: 8929fe90cee4b2cb9deb468b51fb34eba64d1bf0
@@ -10,7 +10,7 @@ imports:
 - name: github.com/eapache/queue
   version: ded5959c0d4e360646dc9e9908cff48666781367
 - name: github.com/elastic/beats
-  version: 35d5dc9406619bc369f4075a788834eff47f8844
+  version: 7c84e979943ebed9dfd4d3b2461abf7ad05b22b5
   subpackages:
   - libbeat/beat
   - libbeat/cfgfile
@@ -20,6 +20,7 @@ imports:
   - libbeat/filter
   - libbeat/paths
   - libbeat/service
+  - libbeat/common/op
   - libbeat/outputs
   - libbeat/outputs/console
   - libbeat/outputs/elasticsearch
