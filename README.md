@@ -2,6 +2,8 @@
 
 **Welcome to Jmxproxybeat - simple beat for JMXProxyServlet for Apache Tomcat to retrieve JMX metrics.**
 
+This is still **development version** and I expect changes based on feedback.
+
 This beat retrieves JMX metrics from running JVM of Apache Tomcat and sends them to Logstash or Elasticsearch.
 JMX metrics are requested via 'JMX Proxy Servlet' configured and enabled in Tomcat for HTTP listener. JMX Proxy Servlet is a lightweight proxy to get and set the Tomcat internals.
 
