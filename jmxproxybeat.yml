@@ -76,34 +76,34 @@ jmxproxybeat:
             - duration
             - endTime
             - id
-    - bean:
-      name: java.lang:type=GarbageCollector,name=ConcurrentMarkSweep
-      attributes:
-        - attribute:
-           name: CollectionCount
-        - attribute:
-           name: CollectionTime
-        - attribute:
-          name: LastGcInfo
-          keys:
-            - GcThreadCount
-            - duration
-            - endTime
-            - id
-    - bean:
-      name: java.lang:type=GarbageCollector,name=ParNew
-      attributes:
-        - attribute:
-           name: CollectionCount
-        - attribute:
-           name: CollectionTime
-        - attribute:
-          name: LastGcInfo
-          keys:
-            - GcThreadCount
-            - duration
-            - endTime
-            - id
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=ConcurrentMarkSweep
+#      attributes:
+#        - attribute:
+#           name: CollectionCount
+#        - attribute:
+#           name: CollectionTime
+#        - attribute:
+#          name: LastGcInfo
+#          keys:
+#            - GcThreadCount
+#            - duration
+#            - endTime
+#            - id
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=ParNew
+#      attributes:
+#        - attribute:
+#           name: CollectionCount
+#        - attribute:
+#           name: CollectionTime
+#        - attribute:
+#          name: LastGcInfo
+#          keys:
+#            - GcThreadCount
+#            - duration
+#            - endTime
+#            - id
     - bean:
       name: java.lang:type=ClassLoading
       attributes:
