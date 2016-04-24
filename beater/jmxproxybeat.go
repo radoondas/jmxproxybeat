@@ -54,7 +54,7 @@ func (bt *Jmxproxybeat) Config(b *beat.Beat) error {
 
 func (bt *Jmxproxybeat) Setup(b *beat.Beat) error {
 
-	bt.events = b.Events
+	bt.events = b.Publisher.Connect()
 
 	// Setting default period if not set
 	if bt.beatConfig.Jmxproxybeat.Period == "" {
