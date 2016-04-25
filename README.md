@@ -1,3 +1,5 @@
+[![Travis Build Status](https://travis-ci.org/radoondas/jmxproxybeat.svg?branch=master)](https://travis-ci.org/radoondas/jmxproxybeat)
+
 # Jmxproxybeat
 
 **Welcome to Jmxproxybeat - simple beat for JMXProxyServlet for Apache Tomcat to retrieve JMX metrics.**
