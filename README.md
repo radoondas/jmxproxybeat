@@ -82,6 +82,10 @@ To run Jmxproxybeat with debugging output enabled, run:
   }
 ```
 
+### Kibana example dashboard
+![JmxProxyBeat1](/docs/images/jmxproxybeat1.png)
+![JmxProxyBeat2](/docs/images/jmxproxybeat2.png)
+
 ### Test - not complete yet
 
 To test Jmxproxybeat, run the following command:
