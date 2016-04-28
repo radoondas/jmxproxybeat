@@ -40,7 +40,6 @@ func (bt *Jmxproxybeat) GetJMX(u url.URL) error {
 			} else {
 				if len(bt.Beans[i].Keys) > 0 {
 					for k := 0; k < len(bt.Beans[i].Keys); k++ {
-						//str :=
 						logp.Debug(selector, "Host: %s, request: %s", u.String(), bt.Beans[i].Name +
 						ATTRIBUTE_URI + bt.Beans[i].Attributes[j].Name +
 						KEY_URI + bt.Beans[i].Keys[k])
@@ -54,7 +53,6 @@ func (bt *Jmxproxybeat) GetJMX(u url.URL) error {
 					}
 
 				} else {
-					//str :=
 					logp.Debug(selector, "Host: %s, request: %s", u.String(), bt.Beans[i].Name +
 					ATTRIBUTE_URI + bt.Beans[i].Attributes[j].Name)
 
@@ -125,7 +123,6 @@ func GetJMXValue(responseBody string) (float64, error) {
 	var re *regexp.Regexp
 	var respValue float64
 
-	//logp.Debug(selector, "Response body: %s", responseBody)
 	if strings.HasPrefix(responseBody, "Error") {
 		return 0, errors.New(responseBody)
 	}
