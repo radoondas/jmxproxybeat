@@ -17,8 +17,8 @@ import (
 
 const (
 	MANAGER_JMXPROXY = "/manager/jmxproxy/?get="
-	ATTRIBUTE_URI = "&att="
-	KEY_URI = "&key="
+	ATTRIBUTE_URI    = "&att="
+	KEY_URI          = "&key="
 )
 
 func (bt *Jmxproxybeat) GetJMX(u url.URL) error {
@@ -26,40 +26,40 @@ func (bt *Jmxproxybeat) GetJMX(u url.URL) error {
 		for j := 0; j < len(bt.Beans[i].Attributes); j++ {
 			if len(bt.Beans[i].Attributes[j].Keys) > 0 {
 				for k := 0; k < len(bt.Beans[i].Attributes[j].Keys); k++ {
-					logp.Debug(selector, "Host: %s, request: %s", u.String(), bt.Beans[i].Name +
-					ATTRIBUTE_URI + bt.Beans[i].Attributes[j].Name +
-					KEY_URI + bt.Beans[i].Attributes[j].Keys[k])
+					logp.Debug(selector, "Host: %s, request: %s", u.String(), bt.Beans[i].Name+
+						ATTRIBUTE_URI+bt.Beans[i].Attributes[j].Name+
+						KEY_URI+bt.Beans[i].Attributes[j].Keys[k])
 
 					err := bt.GetJMXObject(u, bt.Beans[i].Name, bt.Beans[i].Attributes[j].Name, bt.Beans[i].Attributes[j].Keys[k])
 					if err != nil {
-						logp.Err("Error requesting JMX for %s: %v", bt.Beans[i].Name +
-						ATTRIBUTE_URI + bt.Beans[i].Attributes[j].Name +
-						KEY_URI + bt.Beans[i].Attributes[j].Keys[k], err)
+						logp.Err("Error requesting JMX for %s: %v", bt.Beans[i].Name+
+							ATTRIBUTE_URI+bt.Beans[i].Attributes[j].Name+
+							KEY_URI+bt.Beans[i].Attributes[j].Keys[k], err)
 					}
 				}
 			} else {
 				if len(bt.Beans[i].Keys) > 0 {
 					for k := 0; k < len(bt.Beans[i].Keys); k++ {
-						logp.Debug(selector, "Host: %s, request: %s", u.String(), bt.Beans[i].Name +
-						ATTRIBUTE_URI + bt.Beans[i].Attributes[j].Name +
-						KEY_URI + bt.Beans[i].Keys[k])
+						logp.Debug(selector, "Host: %s, request: %s", u.String(), bt.Beans[i].Name+
+							ATTRIBUTE_URI+bt.Beans[i].Attributes[j].Name+
+							KEY_URI+bt.Beans[i].Keys[k])
 
 						err := bt.GetJMXObject(u, bt.Beans[i].Name, bt.Beans[i].Attributes[j].Name, bt.Beans[i].Keys[k])
 						if err != nil {
-							logp.Err("Error requesting JMX for %s: %v", bt.Beans[i].Name +
-							ATTRIBUTE_URI + bt.Beans[i].Attributes[j].Name +
-							KEY_URI + bt.Beans[i].Keys[k], err)
+							logp.Err("Error requesting JMX for %s: %v", bt.Beans[i].Name+
+								ATTRIBUTE_URI+bt.Beans[i].Attributes[j].Name+
+								KEY_URI+bt.Beans[i].Keys[k], err)
 						}
 					}
 
 				} else {
-					logp.Debug(selector, "Host: %s, request: %s", u.String(), bt.Beans[i].Name +
-					ATTRIBUTE_URI + bt.Beans[i].Attributes[j].Name)
+					logp.Debug(selector, "Host: %s, request: %s", u.String(), bt.Beans[i].Name+
+						ATTRIBUTE_URI+bt.Beans[i].Attributes[j].Name)
 
 					err := bt.GetJMXObject(u, bt.Beans[i].Name, bt.Beans[i].Attributes[j].Name, "")
 					if err != nil {
-						logp.Err("Error requesting JMX for %s: %v", bt.Beans[i].Name +
-						ATTRIBUTE_URI + bt.Beans[i].Attributes[j].Name, err)
+						logp.Err("Error requesting JMX for %s: %v", bt.Beans[i].Name+
+							ATTRIBUTE_URI+bt.Beans[i].Attributes[j].Name, err)
 					}
 				}
 			}
