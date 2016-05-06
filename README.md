@@ -1,4 +1,5 @@
 [![Travis Build Status](https://travis-ci.org/radoondas/jmxproxybeat.svg?branch=master)](https://travis-ci.org/radoondas/jmxproxybeat)
+[![GoReportCard](https://goreportcard.com/badge/github.com/radoondas/jmxproxybeat)](https://goreportcard.com/report/github.com/radoondas/jmxproxybeat)
 
 # Jmxproxybeat
 
