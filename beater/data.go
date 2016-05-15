@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	MANAGER_JMXPROXY = "/manager/jmxproxy/?get="
-	ATTRIBUTE_URI    = "&att="
-	KEY_URI          = "&key="
+	managerJmxproxy = "/manager/jmxproxy/?get="
+	attributeURI    = "&att="
+	keyURI          = "&key="
 )
 
 func (bt *Jmxproxybeat) GetJMX(u url.URL) error {
@@ -27,39 +27,39 @@ func (bt *Jmxproxybeat) GetJMX(u url.URL) error {
 			if len(bt.Beans[i].Attributes[j].Keys) > 0 {
 				for k := 0; k < len(bt.Beans[i].Attributes[j].Keys); k++ {
 					logp.Debug(selector, "Host: %s, request: %s", u.String(), bt.Beans[i].Name+
-						ATTRIBUTE_URI+bt.Beans[i].Attributes[j].Name+
-						KEY_URI+bt.Beans[i].Attributes[j].Keys[k])
+						attributeURI+bt.Beans[i].Attributes[j].Name+
+						keyURI+bt.Beans[i].Attributes[j].Keys[k])
 
 					err := bt.GetJMXObject(u, bt.Beans[i].Name, bt.Beans[i].Attributes[j].Name, bt.Beans[i].Attributes[j].Keys[k])
 					if err != nil {
 						logp.Err("Error requesting JMX for %s: %v", bt.Beans[i].Name+
-							ATTRIBUTE_URI+bt.Beans[i].Attributes[j].Name+
-							KEY_URI+bt.Beans[i].Attributes[j].Keys[k], err)
+							attributeURI+bt.Beans[i].Attributes[j].Name+
+							keyURI+bt.Beans[i].Attributes[j].Keys[k], err)
 					}
 				}
 			} else {
 				if len(bt.Beans[i].Keys) > 0 {
 					for k := 0; k < len(bt.Beans[i].Keys); k++ {
 						logp.Debug(selector, "Host: %s, request: %s", u.String(), bt.Beans[i].Name+
-							ATTRIBUTE_URI+bt.Beans[i].Attributes[j].Name+
-							KEY_URI+bt.Beans[i].Keys[k])
+							attributeURI+bt.Beans[i].Attributes[j].Name+
+							keyURI+bt.Beans[i].Keys[k])
 
 						err := bt.GetJMXObject(u, bt.Beans[i].Name, bt.Beans[i].Attributes[j].Name, bt.Beans[i].Keys[k])
 						if err != nil {
 							logp.Err("Error requesting JMX for %s: %v", bt.Beans[i].Name+
-								ATTRIBUTE_URI+bt.Beans[i].Attributes[j].Name+
-								KEY_URI+bt.Beans[i].Keys[k], err)
+								attributeURI+bt.Beans[i].Attributes[j].Name+
+								keyURI+bt.Beans[i].Keys[k], err)
 						}
 					}
 
 				} else {
 					logp.Debug(selector, "Host: %s, request: %s", u.String(), bt.Beans[i].Name+
-						ATTRIBUTE_URI+bt.Beans[i].Attributes[j].Name)
+						attributeURI+bt.Beans[i].Attributes[j].Name)
 
 					err := bt.GetJMXObject(u, bt.Beans[i].Name, bt.Beans[i].Attributes[j].Name, "")
 					if err != nil {
 						logp.Err("Error requesting JMX for %s: %v", bt.Beans[i].Name+
-							ATTRIBUTE_URI+bt.Beans[i].Attributes[j].Name, err)
+							attributeURI+bt.Beans[i].Attributes[j].Name, err)
 					}
 				}
 			}
@@ -72,14 +72,14 @@ func (bt *Jmxproxybeat) GetJMXObject(u url.URL, name, attribute, key string) err
 	client := &http.Client{}
 	var jmxObject, jmxAttribute string
 	if key != "" {
-		jmxObject = name + ATTRIBUTE_URI + attribute + KEY_URI + key
+		jmxObject = name + attributeURI + attribute + keyURI + key
 		jmxAttribute = attribute + "." + key
 	} else {
-		jmxObject = name + ATTRIBUTE_URI + attribute
+		jmxObject = name + attributeURI + attribute
 		jmxAttribute = attribute
 	}
 
-	req, err := http.NewRequest("GET", u.String()+MANAGER_JMXPROXY+jmxObject, nil)
+	req, err := http.NewRequest("GET", u.String()+managerJmxproxy+jmxObject, nil)
 
 	if bt.auth {
 		req.SetBasicAuth(bt.username, bt.password)
