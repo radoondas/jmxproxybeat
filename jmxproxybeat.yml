@@ -13,6 +13,9 @@ jmxproxybeat:
     username: "tomcat"
     password: "s3cret"
 
+  #ssl:
+    #cafile: "/path/to/ca/CA.pem"
+
   beans:
     - bean:
       name: java.lang:type=Memory

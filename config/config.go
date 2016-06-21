@@ -8,10 +8,15 @@ type Config struct {
 }
 
 type JmxproxybeatConfig struct {
+	Ssl            SSLConfig            `yaml:"ssl"`
 	Period         string               `yaml:"period"`
 	URLs           []string             `yaml:"urls"`
 	Authentication AuthenticationConfig `yaml:"authentication"`
 	Beans          []BeanConfig         `yaml:"beans"`
+}
+
+type SSLConfig struct {
+    Cafile string
 }
 
 type AuthenticationConfig struct {

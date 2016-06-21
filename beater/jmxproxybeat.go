@@ -9,7 +9,7 @@ import (
 	"github.com/elastic/beats/libbeat/cfgfile"
 	"github.com/elastic/beats/libbeat/logp"
 	"github.com/elastic/beats/libbeat/publisher"
-	"github.com/radoondas/jmxproxybeat/config"
+	"github.com/ninjasftw/jmxproxybeat/config"
 )
 
 const selector = "jmxproxybeat"
@@ -22,6 +22,7 @@ type Jmxproxybeat struct {
 	auth       bool
 	username   string
 	password   string
+    CAFile     string
 	Beans      []Bean
 	events     publisher.Client
 }
@@ -84,6 +85,15 @@ func (bt *Jmxproxybeat) Setup(b *beat.Beat) error {
 		}
 		bt.urls[i] = u
 	}
+
+
+    if bt.beatConfig.Jmxproxybeat.Ssl.Cafile != "" {
+        logp.Info("CAFile IS set.")
+        bt.CAFile = bt.beatConfig.Jmxproxybeat.Ssl.Cafile
+    } else {
+        logp.Info("CAFile IS NOT set.")
+    }
+    
 
 	if bt.beatConfig.Jmxproxybeat.Authentication.Username == "" || bt.beatConfig.Jmxproxybeat.Authentication.Password == "" {
 		logp.Err("Username or password IS NOT set.")
