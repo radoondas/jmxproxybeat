@@ -5,7 +5,7 @@ import (
 
 	"github.com/elastic/beats/libbeat/beat"
 
-	"github.com/ninjasftw/jmxproxybeat/beater"
+	"github.com/ninjasftw/radoondas/beater"
 )
 
 func main() {
