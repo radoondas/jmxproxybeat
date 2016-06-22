@@ -9,7 +9,7 @@ import (
 	"github.com/elastic/beats/libbeat/cfgfile"
 	"github.com/elastic/beats/libbeat/logp"
 	"github.com/elastic/beats/libbeat/publisher"
-	"github.com/ninjasftw/jmxproxybeat/config"
+	"github.com/radoondas/jmxproxybeat/config"
 )
 
 const selector = "jmxproxybeat"
