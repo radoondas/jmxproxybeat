@@ -16,7 +16,7 @@ type JmxproxybeatConfig struct {
 }
 
 type SSLConfig struct {
-    Cafile string
+	Cafile string
 }
 
 type AuthenticationConfig struct {

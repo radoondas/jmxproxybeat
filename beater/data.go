@@ -2,17 +2,17 @@ package beater
 
 import (
 	"bufio"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"crypto/tls"
-	"crypto/x509"
-	"io/ioutil"
 
 	"github.com/elastic/beats/libbeat/common"
 	"github.com/elastic/beats/libbeat/logp"
@@ -60,9 +60,9 @@ func (bt *Jmxproxybeat) GetJMXObject(u url.URL, name, attribute, key string, CAF
 
 	tlsConfig := &tls.Config{RootCAs: x509.NewCertPool()}
 	transport := &http.Transport{TLSClientConfig: tlsConfig}
-    var ParsedUrl *url.URL
+	var ParsedUrl *url.URL
 
-    if CAFile != "" {
+	if CAFile != "" {
 		// Load our trusted certificate path
 		pemData, err := ioutil.ReadFile(CAFile)
 		if err != nil {
@@ -70,27 +70,27 @@ func (bt *Jmxproxybeat) GetJMXObject(u url.URL, name, attribute, key string, CAF
 		}
 		ok := tlsConfig.RootCAs.AppendCertsFromPEM(pemData)
 		if !ok {
-		    logp.Err("Unable to load CA file")
+			logp.Err("Unable to load CA file")
 			panic("Couldn't load PEM data")
 		}
-    }
+	}
 
 	//client := &http.Client{}
 	client := &http.Client{Transport: transport}
 
 	ParsedUrl, err := url.Parse(u.String())
-    if err != nil {
+	if err != nil {
 		logp.Err("Unable to parse URL String")
 		panic(err)
-    }
+	}
 
-    ParsedUrl.Path += managerJmxproxy
-    parameters := url.Values{}
+	ParsedUrl.Path += managerJmxproxy
+	parameters := url.Values{}
 
 	parameters.Add("get", name)
 
-	//var jmxObject, 
-    var jmxAttribute string
+	//var jmxObject,
+	var jmxAttribute string
 	if key != "" {
 		//jmxObject = name + attributeURI + attribute + keyURI + key
 		parameters.Add("att", attribute)
@@ -102,10 +102,9 @@ func (bt *Jmxproxybeat) GetJMXObject(u url.URL, name, attribute, key string, CAF
 		jmxAttribute = attribute
 	}
 
-
 	ParsedUrl.RawQuery = parameters.Encode()
 
-	logp.Debug(selector, "Requesting JMX: %s", ParsedUrl.String())  
+	logp.Debug(selector, "Requesting JMX: %s", ParsedUrl.String())
 
 	req, err := http.NewRequest("GET", ParsedUrl.String(), nil)
 
