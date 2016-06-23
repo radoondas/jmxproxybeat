@@ -156,7 +156,7 @@ func GetJMXValue(responseBody string) (float64, error) {
 	}
 
 	//TODO: This requires lots of tuning!!
-	re = regexp.MustCompile("\\d+(\\.\\d+)?$")
+	re = regexp.MustCompile("\\d*(\\.\\d+)?$")
 	if matches := re.FindStringSubmatch(responseBody); matches != nil {
 		respV, err := strconv.ParseFloat(matches[0], 64)
 		//TODO: test for empty string!
