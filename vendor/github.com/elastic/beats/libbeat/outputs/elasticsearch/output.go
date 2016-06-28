@@ -1,12 +1,12 @@
 package elasticsearch
 
 import (
-	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +16,7 @@ import (
 	"github.com/elastic/beats/libbeat/logp"
 	"github.com/elastic/beats/libbeat/outputs"
 	"github.com/elastic/beats/libbeat/outputs/mode"
+	"github.com/elastic/beats/libbeat/outputs/mode/modeutil"
 	"github.com/elastic/beats/libbeat/paths"
 )
 
@@ -24,7 +25,7 @@ type elasticsearchOutput struct {
 	mode  mode.ConnectionMode
 	topology
 
-	templateContents []byte
+	template      map[string]interface{}
 	templateMutex sync.Mutex
 }
 
@@ -33,7 +34,7 @@ func init() {
 }
 
 var (
-	debug = logp.MakeDebug("elasticsearch")
+	debugf = logp.MakeDebug("elasticsearch")
 )
 
 var (
@@ -44,13 +45,13 @@ var (
 	ErrJSONEncodeFailed = errors.New("json encode failed")
 
 	// ErrResponseRead indicates error parsing Elasticsearch response
-	ErrResponseRead = errors.New("bulk item status parse failed.")
+	ErrResponseRead = errors.New("bulk item status parse failed")
 )
 
-// NewOutput instantiates a new output plugin instance publishing to elasticsearch.
+// New instantiates a new output plugin instance publishing to elasticsearch.
 func New(cfg *common.Config, topologyExpire int) (outputs.Outputer, error) {
 	if !cfg.HasField("bulk_max_size") {
-		cfg.SetInt("bulk_max_size", 0, defaultBulkSize)
+		cfg.SetInt("bulk_max_size", -1, defaultBulkSize)
 	}
 
 	output := &elasticsearchOutput{}
@@ -80,7 +81,7 @@ func (out *elasticsearchOutput) init(
 		return err
 	}
 
-	clients, err := mode.MakeClients(cfg, makeClientFactory(tlsConfig, &config, out))
+	clients, err := modeutil.MakeClients(cfg, makeClientFactory(tlsConfig, &config, out))
 	if err != nil {
 		return err
 	}
@@ -96,33 +97,10 @@ func (out *elasticsearchOutput) init(
 
 	out.clients = clients
 	loadBalance := config.LoadBalance
-	m, err := mode.NewConnectionMode(clients, !loadBalance,
+	m, err := modeutil.NewConnectionMode(clients, !loadBalance,
 		maxAttempts, waitRetry, config.Timeout, maxWaitRetry)
 	if err != nil {
 		return err
-	}
-
-	if config.SaveTopology {
-		err := out.EnableTTL()
-		if err != nil {
-			logp.Err("Fail to set _ttl mapping: %s", err)
-			// keep trying in the background
-			go func() {
-				for {
-					err := out.EnableTTL()
-					if err == nil {
-						break
-					}
-					logp.Err("Fail to set _ttl mapping: %s", err)
-					time.Sleep(5 * time.Second)
-				}
-			}()
-		}
-	}
-
-	out.TopologyExpire = 15000
-	if topologyExpire != 0 {
-		out.TopologyExpire = topologyExpire * 1000 // millisec
 	}
 
 	out.mode = m
@@ -139,13 +117,31 @@ func (out *elasticsearchOutput) readTemplate(config Template) error {
 
 		logp.Info("Loading template enabled. Reading template file: %v", templatePath)
 
-		var err error
-		out.templateContents, err = ioutil.ReadFile(templatePath)
+		template, err := readTemplate(templatePath)
 		if err != nil {
 			return fmt.Errorf("Error loading template %s: %v", templatePath, err)
 		}
+
+		out.template = template
 	}
 	return nil
+}
+
+func readTemplate(filename string) (map[string]interface{}, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var template map[string]interface{}
+	dec := json.NewDecoder(f)
+	err = dec.Decode(&template)
+	if err != nil {
+		return nil, err
+	}
+
+	return template, nil
 }
 
 // loadTemplate checks if the index mapping template should be loaded
@@ -155,7 +151,7 @@ func (out *elasticsearchOutput) loadTemplate(config Template, client *Client) er
 	out.templateMutex.Lock()
 	defer out.templateMutex.Unlock()
 
-	logp.Info("Trying to load template for client: %s", client)
+	logp.Info("Trying to load template for client: %s", client.Connection.URL)
 
 	// Check if template already exist or should be overwritten
 	exists := client.CheckTemplate(config.Name)
@@ -165,8 +161,7 @@ func (out *elasticsearchOutput) loadTemplate(config Template, client *Client) er
 			logp.Info("Existing template will be overwritten, as overwrite is enabled.")
 		}
 
-		reader := bytes.NewReader(out.templateContents)
-		err := client.LoadTemplate(config.Name, reader)
+		err := client.LoadTemplate(config.Name, out.template)
 		if err != nil {
 			return fmt.Errorf("Could not load template: %v", err)
 		}
@@ -180,7 +175,7 @@ func (out *elasticsearchOutput) loadTemplate(config Template, client *Client) er
 func makeClientFactory(
 	tls *tls.Config,
 	config *elasticsearchConfig,
-out *elasticsearchOutput,
+	out *elasticsearchOutput,
 ) func(string) (mode.ProtocolClient, error) {
 	return func(host string) (mode.ProtocolClient, error) {
 		esURL, err := getURL(config.Protocol, config.Path, host)
@@ -191,15 +186,9 @@ out *elasticsearchOutput,
 
 		var proxyURL *url.URL
 		if config.ProxyURL != "" {
-			proxyURL, err = url.Parse(config.ProxyURL)
-			if err != nil || !strings.HasPrefix(proxyURL.Scheme, "http") {
-				// Proxy was bogus. Try prepending "http://" to it and
-				// see if that parses correctly. If not, we fall
-				// through and complain about the original one.
-				proxyURL, err = url.Parse("http://" + config.ProxyURL)
-				if err != nil {
-					return nil, err
-				}
+			proxyURL, err = parseProxyURL(config.ProxyURL)
+			if err != nil {
+				return nil, err
 			}
 
 			logp.Info("Using proxy URL: %s", proxyURL)
@@ -212,17 +201,18 @@ out *elasticsearchOutput,
 
 		// define a callback to be called on connection
 		var onConnected connectCallback
-		if len(out.templateContents) > 0 {
+		if out.template != nil {
 			onConnected = func(client *Client) error {
 				return out.loadTemplate(config.Template, client)
 			}
 		}
 
-		client := NewClient(
+		return NewClient(
 			esURL, config.Index, proxyURL, tls,
 			config.Username, config.Password,
-			params, onConnected)
-		return client, nil
+			params, config.Timeout,
+			config.CompressionLevel,
+			onConnected)
 	}
 }
 
@@ -231,7 +221,7 @@ func (out *elasticsearchOutput) Close() error {
 }
 
 func (out *elasticsearchOutput) PublishEvent(
-signaler op.Signaler,
+	signaler op.Signaler,
 	opts outputs.Options,
 	event common.MapStr,
 ) error {
@@ -239,9 +229,20 @@ signaler op.Signaler,
 }
 
 func (out *elasticsearchOutput) BulkPublish(
-trans op.Signaler,
+	trans op.Signaler,
 	opts outputs.Options,
 	events []common.MapStr,
 ) error {
 	return out.mode.PublishEvents(trans, opts, events)
+}
+
+func parseProxyURL(raw string) (*url.URL, error) {
+	url, err := url.Parse(raw)
+	if err == nil && strings.HasPrefix(url.Scheme, "http") {
+		return url, err
+	}
+
+	// Proxy was bogus. Try prepending "http://" to it and
+	// see if that parses correctly.
+	return url.Parse("http://" + raw)
 }

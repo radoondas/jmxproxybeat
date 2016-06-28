@@ -4,6 +4,7 @@ import os
 import platform
 import time
 import shutil
+import json
 from nose.plugins.skip import Skip, SkipTest
 
 
@@ -38,8 +39,7 @@ class Test(BaseTest):
         c = self.log_contains_count("states written")
 
         self.wait_until(
-            lambda: self.log_contains(
-                "Processing 5 events"),
+            lambda: self.output_has(lines=5),
             max_timeout=15)
 
         # Make sure states written appears one more time
@@ -60,7 +60,7 @@ class Test(BaseTest):
         assert len(data) == 1
 
         logFileAbsPath = os.path.abspath(testfile)
-        record = data[logFileAbsPath]
+        record = self.get_registry_entry_by_path(logFileAbsPath)
 
         self.assertDictContainsSubset({
             "source": logFileAbsPath,
@@ -115,8 +115,7 @@ class Test(BaseTest):
         filebeat = self.start_beat()
 
         self.wait_until(
-            lambda: self.log_contains(
-                "Processing 10 events"),
+            lambda: self.output_has(lines=10),
             max_timeout=15)
         # wait until the registry file exist. Needed to avoid a race between
         # the logging and actual writing the file. Seems to happen on Windows.
@@ -147,8 +146,7 @@ class Test(BaseTest):
             f.write("hello world\n")
         filebeat = self.start_beat()
         self.wait_until(
-            lambda: self.log_contains(
-                "Processing 1 events"),
+            lambda: self.output_has(lines=1),
             max_timeout=15)
         # wait until the registry file exist. Needed to avoid a race between
         # the logging and actual writing the file. Seems to happen on Windows.
@@ -195,8 +193,12 @@ class Test(BaseTest):
         data = self.get_registry()
 
         # Make sure the offsets are correctly set
-        data[os.path.abspath(testfile)]["offset"] = 10
-        data[os.path.abspath(testfilerenamed)]["offset"] = 9
+        if os.name == "nt":
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile))["offset"] == 11
+            assert self.get_registry_entry_by_path(os.path.abspath(testfilerenamed))["offset"] == 10
+        else:
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile))["offset"] == 10
+            assert self.get_registry_entry_by_path(os.path.abspath(testfilerenamed))["offset"] == 9
 
         # Check that 2 files are port of the registrar file
         assert len(data) == 2
@@ -243,7 +245,7 @@ class Test(BaseTest):
             max_timeout=10)
 
         data = self.get_registry()
-        assert os.stat(testfile).st_ino == data[os.path.abspath(testfile)]["FileStateOS"]["inode"]
+        assert os.stat(testfile).st_ino == self.get_registry_entry_by_path(os.path.abspath(testfile))["FileStateOS"]["inode"]
 
         testfilerenamed1 = self.working_dir + "/log/input.1"
         os.rename(testfile, testfilerenamed1)
@@ -255,10 +257,13 @@ class Test(BaseTest):
             lambda: self.output_has(lines=2),
             max_timeout=10)
 
+        # Add one second sleep as it can sometimes take a moment until state is written
+        time.sleep(1)
+
         data = self.get_registry()
 
-        assert os.stat(testfile).st_ino == data[os.path.abspath(testfile)]["FileStateOS"]["inode"]
-        assert os.stat(testfilerenamed1).st_ino == data[os.path.abspath(testfilerenamed1)]["FileStateOS"]["inode"]
+        assert os.stat(testfile).st_ino == self.get_registry_entry_by_path(os.path.abspath(testfile))["FileStateOS"]["inode"]
+        assert os.stat(testfilerenamed1).st_ino == self.get_registry_entry_by_path(os.path.abspath(testfilerenamed1))["FileStateOS"]["inode"]
 
         # Rotate log file, create a new empty one and remove it afterwards
         testfilerenamed2 = self.working_dir + "/log/input.2"
@@ -282,16 +287,16 @@ class Test(BaseTest):
         data = self.get_registry()
 
         # Compare file inodes and the one in the registry
-        assert os.stat(testfile).st_ino == data[os.path.abspath(testfile)]["FileStateOS"]["inode"]
-        assert os.stat(testfilerenamed1).st_ino == data[os.path.abspath(testfilerenamed1)]["FileStateOS"]["inode"]
+        assert os.stat(testfile).st_ino == self.get_registry_entry_by_path(os.path.abspath(testfile))["FileStateOS"]["inode"]
+        assert os.stat(testfilerenamed1).st_ino == self.get_registry_entry_by_path(os.path.abspath(testfilerenamed1))["FileStateOS"]["inode"]
 
-        # Check that 2 files are part of the registrar file. The deleted file should never have been detected
-        assert len(data) == 2
+        # Check that 3 files are part of the registrar file. The deleted file should never have been detected, but the rotated one should be in
+        assert len(data) == 3
 
 
-    def test_rotating_file_with_shutdown(self):
+    def test_restart_continue(self):
         """
-        Check that inodes are properly written during file rotation and shutdown
+        Check that file readining continues after restart
         """
         self.render_config_template(
             path=os.path.abspath(self.working_dir) + "/log/input*",
@@ -313,8 +318,77 @@ class Test(BaseTest):
             lambda: self.output_has(lines=1),
             max_timeout=10)
 
+        # Wait a momemt to make sure registry is completely written
+        time.sleep(1)
+
+        assert os.stat(testfile).st_ino == self.get_registry_entry_by_path(os.path.abspath(testfile))["FileStateOS"]["inode"]
+
+        filebeat.check_kill_and_wait()
+
+        # Store first registry file
+        shutil.copyfile(self.working_dir + "/registry", self.working_dir + "/registry.first")
+
+        # Append file
+        with open(testfile, 'a') as f:
+            f.write("entry2\n")
+
+        filebeat = self.start_beat(output="filebeat2.log")
+
+        # Output file was rotated
+        self.wait_until(
+            lambda: self.output_has(lines=1, output_file="output/filebeat.1"),
+            max_timeout=10)
+
+        self.wait_until(
+            lambda: self.output_has(lines=1),
+            max_timeout=10)
+
+        filebeat.check_kill_and_wait()
+
         data = self.get_registry()
-        assert os.stat(testfile).st_ino == data[os.path.abspath(testfile)]["FileStateOS"]["inode"]
+
+        # Compare file inodes and the one in the registry
+        assert os.stat(testfile).st_ino == self.get_registry_entry_by_path(os.path.abspath(testfile))["FileStateOS"]["inode"]
+
+        # Check that 1 files are part of the registrar file. The deleted file should never have been detected
+        assert len(data) == 1
+
+        output = self.read_output()
+
+        # Check that output file has the same number of lines as the log file
+        assert 1 == len(output)
+        assert output[0]["message"] == "entry2"
+
+
+    def test_rotating_file_with_restart(self):
+        """
+        Check that inodes are properly written during file rotation and restart
+        """
+        self.render_config_template(
+            path=os.path.abspath(self.working_dir) + "/log/input*",
+            scan_frequency="1s"
+        )
+
+        if os.name == "nt":
+            raise SkipTest
+
+        os.mkdir(self.working_dir + "/log/")
+        testfile = self.working_dir + "/log/input"
+
+        filebeat = self.start_beat()
+
+        with open(testfile, 'w') as f:
+            f.write("entry1\n")
+
+        self.wait_until(
+            lambda: self.output_has(lines=1),
+            max_timeout=10)
+
+        # Wait a momemt to make sure registry is completely written
+        time.sleep(1)
+
+        data = self.get_registry()
+        assert os.stat(testfile).st_ino == self.get_registry_entry_by_path(os.path.abspath(testfile))["FileStateOS"]["inode"]
 
         testfilerenamed1 = self.working_dir + "/log/input.1"
         os.rename(testfile, testfilerenamed1)
@@ -326,10 +400,13 @@ class Test(BaseTest):
             lambda: self.output_has(lines=2),
             max_timeout=10)
 
+        # Wait a momemt to make sure registry is completely written
+        time.sleep(1)
+
         data = self.get_registry()
 
-        assert os.stat(testfile).st_ino == data[os.path.abspath(testfile)]["FileStateOS"]["inode"]
-        assert os.stat(testfilerenamed1).st_ino == data[os.path.abspath(testfilerenamed1)]["FileStateOS"]["inode"]
+        assert os.stat(testfile).st_ino == self.get_registry_entry_by_path(os.path.abspath(testfile))["FileStateOS"]["inode"]
+        assert os.stat(testfilerenamed1).st_ino == self.get_registry_entry_by_path(os.path.abspath(testfilerenamed1))["FileStateOS"]["inode"]
 
         filebeat.check_kill_and_wait()
 
@@ -365,10 +442,259 @@ class Test(BaseTest):
         data = self.get_registry()
 
         # Compare file inodes and the one in the registry
-        assert os.stat(testfile).st_ino == data[os.path.abspath(testfile)]["FileStateOS"]["inode"]
-        assert os.stat(testfilerenamed1).st_ino == data[os.path.abspath(testfilerenamed1)]["FileStateOS"]["inode"]
+        assert os.stat(testfile).st_ino == self.get_registry_entry_by_path(os.path.abspath(testfile))["FileStateOS"]["inode"]
+        assert os.stat(testfilerenamed1).st_ino == self.get_registry_entry_by_path(os.path.abspath(testfilerenamed1))["FileStateOS"]["inode"]
 
-        # Check that 2 files are part of the registrar file. The deleted file should never have been detected
+        # Check that 3 files are part of the registrar file. The deleted file should never have been detected, but the rotated one should be in
+        assert len(data) == 3
+
+    def test_state_after_rotation(self):
+        """
+        Checks that the state is written correctly after rotation
+        """
+        self.render_config_template(
+            path=os.path.abspath(self.working_dir) + "/log/input*",
+            ignoreOlder="2m",
+            scan_frequency="1s"
+        )
+
+        os.mkdir(self.working_dir + "/log/")
+        testfile1 = self.working_dir + "/log/input"
+        testfile2 = self.working_dir + "/log/input.1"
+        testfile3 = self.working_dir + "/log/input.2"
+
+        with open(testfile1, 'w') as f:
+            f.write("entry10\n")
+
+        with open(testfile2, 'w') as f:
+            f.write("entry0\n")
+
+        filebeat = self.start_beat()
+
+        self.wait_until(
+            lambda: self.output_has(lines=2),
+            max_timeout=10)
+
+        # Wait a moment to make sure file exists
+        time.sleep(1)
+        data = self.get_registry()
+
+        # Check that offsets are correct
+        if os.name == "nt":
+            # Under windows offset is +1 because of additional newline char
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile1))["offset"] == 9
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile2))["offset"] == 8
+        else:
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile1))["offset"] == 8
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile2))["offset"] == 7
+
+        # Rotate files and remove old one
+        os.rename(testfile2, testfile3)
+        os.rename(testfile1, testfile2)
+
+        with open(testfile1, 'w') as f:
+            f.write("entry200\n")
+
+        # Remove file afterwards to make sure not inode reuse happens
+        os.remove(testfile3)
+
+        # Now wait until rotation is detected
+        self.wait_until(
+            lambda: self.log_contains(
+                "File rename was detected"),
+            max_timeout=10)
+
+        self.wait_until(
+            lambda: self.log_contains_count(
+                "Registry file updated. 2 states written.") >= 1,
+            max_timeout=15)
+
+        time.sleep(5)
+        filebeat.kill_and_wait()
+
+        # Check that offsets are correct
+        if os.name == "nt":
+            # Under windows offset is +1 because of additional newline char
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile1))["offset"] == 10
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile2))["offset"] == 9
+        else:
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile1))["offset"] == 9
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile2))["offset"] == 8
+
+
+    def test_state_after_rotation_ignore_older(self):
+        """
+        Checks that the state is written correctly after rotation and ignore older
+        """
+        self.render_config_template(
+            path=os.path.abspath(self.working_dir) + "/log/input*",
+            ignoreOlder="2m",
+            scan_frequency="1s"
+        )
+
+
+        os.mkdir(self.working_dir + "/log/")
+        testfile1 = self.working_dir + "/log/input"
+        testfile2 = self.working_dir + "/log/input.1"
+        testfile3 = self.working_dir + "/log/input.2"
+
+        with open(testfile1, 'w') as f:
+            f.write("entry10\n")
+
+        with open(testfile2, 'w') as f:
+            f.write("entry0\n")
+
+        # Change modification time so file extends ignore_older
+        yesterday = time.time() - 3600*24
+        os.utime(testfile2, (yesterday, yesterday))
+
+        filebeat = self.start_beat()
+
+        self.wait_until(
+            lambda: self.output_has(lines=1),
+            max_timeout=10)
+
+        # Wait a moment to make sure file exists
+        time.sleep(1)
+        data = self.get_registry()
+
+        # Check that offsets are correct
+        if os.name == "nt":
+            # Under windows offset is +1 because of additional newline char
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile1))["offset"] == 9
+        else:
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile1))["offset"] == 8
+
+        # Rotate files and remove old one
+        os.rename(testfile2, testfile3)
+        os.rename(testfile1, testfile2)
+
+        with open(testfile1, 'w') as f:
+            f.write("entry200\n")
+
+        # Remove file afterwards to make sure not inode reuse happens
+        os.remove(testfile3)
+
+        # Now wait until rotation is detected
+        self.wait_until(
+            lambda: self.log_contains(
+                "File rename was detected"),
+            max_timeout=10)
+
+        self.wait_until(
+            lambda: self.log_contains_count(
+                "Registry file updated. 2 states written.") >= 1,
+            max_timeout=15)
+
+        time.sleep(5)
+        filebeat.kill_and_wait()
+
+        # Check that offsets are correct
+        if os.name == "nt":
+            # Under windows offset is +1 because of additional newline char
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile1))["offset"] == 10
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile2))["offset"] == 9
+        else:
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile1))["offset"] == 9
+            assert self.get_registry_entry_by_path(os.path.abspath(testfile2))["offset"] == 8
+
+
+    def test_migration_non_windows(self):
+        """
+        Tests if migration from old filebeat registry to new format works
+        """
+
+        if os.name == "nt":
+            raise SkipTest
+
+        registry_file = self.working_dir + '/registry'
+
+        # Write old registry file
+        with open(registry_file, 'w') as f:
+            f.write('{"logs/hello.log":{"source":"logs/hello.log","offset":4,"FileStateOS":{"inode":30178938,"device":16777220}},"logs/log2.log":{"source":"logs/log2.log","offset":6,"FileStateOS":{"inode":30178958,"device":16777220}}}')
+
+        self.render_config_template(
+            path=os.path.abspath(self.working_dir) + "/log/input*",
+        )
+
+        filebeat = self.start_beat()
+
+        self.wait_until(
+            lambda: self.log_contains("Old registry states found: 2"),
+            max_timeout=15)
+
+        self.wait_until(
+            lambda: self.log_contains("Old states converted to new states and written to registrar: 2"),
+            max_timeout=15)
+
+        filebeat.check_kill_and_wait()
+
+        # Check if content is same as above
+        assert self.get_registry_entry_by_path("logs/hello.log")["offset"] == 4
+        assert self.get_registry_entry_by_path("logs/log2.log")["offset"] == 6
+
+        # Compare first entry
+        oldJson = json.loads('{"source":"logs/hello.log","offset":4,"FileStateOS":{"inode":30178938,"device":16777220}}')
+        newJson = self.get_registry_entry_by_path("logs/hello.log")
+        del newJson["last_seen"]
+        assert newJson == oldJson
+
+        # Compare second entry
+        oldJson = json.loads('{"source":"logs/log2.log","offset":6,"FileStateOS":{"inode":30178958,"device":16777220}}')
+        newJson = self.get_registry_entry_by_path("logs/log2.log")
+        del newJson["last_seen"]
+        assert newJson == oldJson
+
+        # Make sure the right number of entries is in
+        data = self.get_registry()
         assert len(data) == 2
 
+    def test_migration_windows(self):
+        """
+        Tests if migration from old filebeat registry to new format works
+        """
 
+        if os.name != "nt":
+            raise SkipTest
+
+        registry_file = self.working_dir + '/registry'
+
+        # Write old registry file
+        with open(registry_file, 'w') as f:
+            f.write('{"logs/hello.log":{"source":"logs/hello.log","offset":4,"FileStateOS":{"idxhi":1,"idxlo":12,"vol":34}},"logs/log2.log":{"source":"logs/log2.log","offset":6,"FileStateOS":{"idxhi":67,"idxlo":44,"vol":12}}}')
+
+        self.render_config_template(
+            path=os.path.abspath(self.working_dir) + "/log/input*",
+        )
+
+        filebeat = self.start_beat()
+
+        self.wait_until(
+            lambda: self.log_contains("Old registry states found: 2"),
+            max_timeout=15)
+
+        self.wait_until(
+            lambda: self.log_contains("Old states converted to new states and written to registrar: 2"),
+            max_timeout=15)
+
+        filebeat.check_kill_and_wait()
+
+        # Check if content is same as above
+        assert self.get_registry_entry_by_path("logs/hello.log")["offset"] == 4
+        assert self.get_registry_entry_by_path("logs/log2.log")["offset"] == 6
+
+        # Compare first entry
+        oldJson = json.loads('{"source":"logs/hello.log","offset":4,"FileStateOS":{"idxhi":1,"idxlo":12,"vol":34}}')
+        newJson = self.get_registry_entry_by_path("logs/hello.log")
+        del newJson["last_seen"]
+        assert newJson == oldJson
+
+        # Compare second entry
+        oldJson = json.loads('{"source":"logs/log2.log","offset":6,"FileStateOS":{"idxhi":67,"idxlo":44,"vol":12}}')
+        newJson = self.get_registry_entry_by_path("logs/log2.log")
+        del newJson["last_seen"]
+        assert newJson == oldJson
+
+        # Make sure the right number of entries is in
+        data = self.get_registry()
+        assert len(data) == 2

@@ -8,13 +8,13 @@ import (
 )
 
 type bulkWorker struct {
-	output       worker
-	ws           *workerSignal
+	output worker
+	ws     *workerSignal
 
-	queue        chan message
-	bulkQueue    chan message
-	guaranteed   bool
-	flushTicker  *time.Ticker
+	queue       chan message
+	bulkQueue   chan message
+	guaranteed  bool
+	flushTicker *time.Ticker
 
 	maxBatchSize int
 	events       []common.MapStr // batched events
@@ -22,7 +22,7 @@ type bulkWorker struct {
 }
 
 func newBulkWorker(
-ws *workerSignal, hwm int, bulkHWM int,
+	ws *workerSignal, hwm int, bulkHWM int,
 	output worker,
 	flushInterval time.Duration,
 	maxBatchSize int,

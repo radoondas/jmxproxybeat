@@ -8,65 +8,53 @@ import (
 	"github.com/elastic/beats/libbeat/logp"
 )
 
-type FilterCondition struct {
+type Filters struct {
+	list []FilterRule
 }
 
-type FilterRule interface {
-	Filter(event common.MapStr) (common.MapStr, error)
-	String() string
-}
+func New(config FilterPluginConfig) (*Filters, error) {
 
-/* extends FilterRule */
-type IncludeFields struct {
-	Fields []string
-	// condition
-}
+	filters := Filters{}
 
-/* extend FilterRule */
-type DropFields struct {
-	Fields []string
-	// condition
-}
+	for _, filter := range config {
 
-type FilterList struct {
-	filters []FilterRule
-}
-
-/* FilterList methods */
-func New(config []FilterConfig) (*FilterList, error) {
-
-	Filters := &FilterList{}
-	Filters.filters = []FilterRule{}
-
-	logp.Debug("filter", "configuration %v", config)
-	for _, filterConfig := range config {
-		if filterConfig.DropFields != nil {
-			Filters.Register(NewDropFields(filterConfig.DropFields.Fields))
+		if len(filter) != 1 {
+			return nil, fmt.Errorf("each filtering rule needs to have exactly one action, but found %d actions.", len(filter))
 		}
 
-		if filterConfig.IncludeFields != nil {
-			Filters.Register(NewIncludeFields(filterConfig.IncludeFields.Fields))
+		for filterName, cfg := range filter {
+
+			constructor, exists := filterConstructors[filterName]
+			if !exists {
+				return nil, fmt.Errorf("the filtering rule %s doesn't exist", filterName)
+			}
+
+			plugin, err := constructor(cfg)
+			if err != nil {
+				return nil, err
+			}
+
+			filters.addRule(plugin)
 		}
 	}
 
-	logp.Debug("filter", "filters: %v", Filters)
-	return Filters, nil
+	logp.Debug("filter", "filters: %v", filters)
+	return &filters, nil
 }
 
-func (filters *FilterList) Register(filter FilterRule) {
-	filters.filters = append(filters.filters, filter)
-	logp.Debug("filter", "Register filter: %v", filter)
-}
+func (filters *Filters) addRule(filter FilterRule) {
 
-func (filters *FilterList) Get(index int) FilterRule {
-	return filters.filters[index]
+	if filters.list == nil {
+		filters.list = []FilterRule{}
+	}
+	filters.list = append(filters.list, filter)
 }
 
 // Applies a sequence of filtering rules and returns the filtered event
-func (filters *FilterList) Filter(event common.MapStr) common.MapStr {
+func (filters *Filters) Filter(event common.MapStr) common.MapStr {
 
 	// Check if filters are set, just return event if not
-	if len(filters.filters) == 0 {
+	if len(filters.list) == 0 {
 		return event
 	}
 
@@ -74,97 +62,26 @@ func (filters *FilterList) Filter(event common.MapStr) common.MapStr {
 	filtered := event.Clone()
 	var err error
 
-	for _, filter := range filters.filters {
+	for _, filter := range filters.list {
 		filtered, err = filter.Filter(filtered)
 		if err != nil {
 			logp.Debug("filter", "fail to apply filtering rule %s: %s", filter, err)
+		}
+		if filtered == nil {
+			// drop event
+			return nil
 		}
 	}
 
 	return filtered
 }
 
-func (filters *FilterList) String() string {
+func (filters Filters) String() string {
 	s := []string{}
 
-	for _, filter := range filters.filters {
+	for _, filter := range filters.list {
 
 		s = append(s, filter.String())
 	}
 	return strings.Join(s, ", ")
-}
-
-/* IncludeFields methods */
-func NewIncludeFields(fields []string) *IncludeFields {
-
-	/* add read only fields if they are not yet */
-	for _, readOnly := range MandatoryExportedFields {
-		found := false
-		for _, field := range fields {
-			if readOnly == field {
-				found = true
-			}
-		}
-		if !found {
-			fields = append(fields, readOnly)
-		}
-	}
-
-	return &IncludeFields{Fields: fields}
-}
-
-func (f *IncludeFields) Filter(event common.MapStr) (common.MapStr, error) {
-
-	filtered := common.MapStr{}
-
-	for _, field := range f.Fields {
-		hasKey, err := event.HasKey(field)
-		if err != nil {
-			return filtered, fmt.Errorf("Fail to check the key %s: %s", field, err)
-		}
-
-		if hasKey {
-			errorOnCopy := event.CopyFieldsTo(filtered, field)
-			if errorOnCopy != nil {
-				return filtered, fmt.Errorf("Fail to copy key %s: %s", field, err)
-			}
-		}
-	}
-
-	return filtered, nil
-}
-
-func (f *IncludeFields) String() string {
-	return "include_fields=" + strings.Join(f.Fields, ", ")
-}
-
-/* DropFields methods */
-func NewDropFields(fields []string) *DropFields {
-
-	/* remove read only fields */
-	for _, readOnly := range MandatoryExportedFields {
-		for i, field := range fields {
-			if readOnly == field {
-				fields = append(fields[:i], fields[i+1:]...)
-			}
-		}
-	}
-	return &DropFields{Fields: fields}
-}
-
-func (f *DropFields) Filter(event common.MapStr) (common.MapStr, error) {
-
-	for _, field := range f.Fields {
-		err := event.Delete(field)
-		if err != nil {
-			return event, fmt.Errorf("Fail to delete key %s: %s", field, err)
-		}
-
-	}
-	return event, nil
-}
-
-func (f *DropFields) String() string {
-
-	return "drop_fields=" + strings.Join(f.Fields, ", ")
 }

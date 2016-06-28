@@ -8,29 +8,19 @@
 // Template, add newest changes here
 
 === Beats version HEAD
-https://github.com/elastic/beats/compare/v5.0.0-alpha1...master[Check the HEAD diff]
+https://github.com/elastic/beats/compare/v5.0.0-alpha3...master[Check the HEAD diff]
 
 ==== Breaking changes
 
 *Affecting all Beats*
 
-- Add scripts for managing the dashboards of a single Beat {pull}1359[1359]
-- On DEB/RPM installations, the binary files are now found under `/usr/share/{{beat_name}}/bin`, not in `/usr/bin`. {pull}1385[1385]
-- The logs are written by default to self rotating files, instead of syslog. {pull}1371[1371]
+*Metricbeat*
 
 *Packetbeat*
-
-- Configuration of redis topology support changed. {pull}1353[1353]
 
 *Topbeat*
 
 *Filebeat*
-
-- Default location for the registry file was changed to be `data/registry` from the binary directory,
-  rather than `.filebeat` in the current working directory. This affects installations for zip/tar.gz/source,
-  the location for DEB and RPM packages stays the same. {pull}1373[1373]
-- Fix issue with JSON decoding where `@timestamp` or `type` keys with the wrong type could cause Filebeat
-  to crash. {issue}1378[1378]
 
 *Winlogbeat*
 
@@ -39,11 +29,7 @@ https://github.com/elastic/beats/compare/v5.0.0-alpha1...master[Check the HEAD d
 
 *Affecting all Beats*
 
-- Drain response buffers when pipelining is used by redis output. {pull}1353[1353]
-- Unterminated environment variable expressions in config files will now cause an error {pull}1389[1389]
-- Fix issue with the automatic template loading when Elasticsearch is not available on Beat start. {issue}1321[1321]
-- Fix bug affecting -cpuprofile, -memprofile, and -httpprof CLI flags {pull}1415[1415]
-- Fix race when multiple outputs access the same event with logstash output manipulating event {issue}1410[1410] {pull}1428[1428]
+*Metricbeat*
 
 *Packetbeat*
 
@@ -51,30 +37,17 @@ https://github.com/elastic/beats/compare/v5.0.0-alpha1...master[Check the HEAD d
 
 *Filebeat*
 
-- Improvements in registrar dealing with file rotation. {pull}1281[1281]
-
 *Winlogbeat*
 
 ==== Added
 
 *Affecting all Beats*
 
-- Add support for TLS to redis output. {pull}1353[1353]
-- Add SOCKS5 proxy support to redis output. {pull}1353[1353]
-- Failover and load balancing support in redis output. {pull}1353[1353]
-- Multiple-worker per host support for redis output. {pull}1353[1353]
-- Added ability to escape `${x}` in config files to avoid environment variable expansion {pull}1389[1389]
-- Configuration options and CLI flags for setting the home, data and config paths. {pull}1373[1373]
-- Configuration options and CLI flags for setting the default logs path. {pull}1437[1437]
-- Update to Go 1.6.2 {pull}1447[1447]
+*Metricbeat*
 
 *Packetbeat*
 
-- Fix compile issues for OpenBSD. {pull}1347[1347]
-
 *Topbeat*
-
-- Updated elastic/gosigar version so Topbeat can compile on OpenBSD. {pull}1403[1403]
 
 *Filebeat*
 
@@ -85,7 +58,6 @@ https://github.com/elastic/beats/compare/v5.0.0-alpha1...master[Check the HEAD d
 
 *Affecting all Beats*
 
-
 *Packetbeat*
 
 *Topbeat*
@@ -95,6 +67,214 @@ https://github.com/elastic/beats/compare/v5.0.0-alpha1...master[Check the HEAD d
 *Winlogbeat*
 
 ////////////////////////////////////////////////////////////
+
+[[release-notes-5.0.0-alpha4]]
+=== Beats version 5.0.0-alpha4
+https://github.com/elastic/beats/compare/v5.0.0-alpha3...v5.0.0-alpha4[View commits]
+
+==== Breaking changes
+
+*Affecting all Beats*
+
+- The topology_expire option of the Elasticserach output was removed. {pull}1907[1907]
+
+*Filebeat*
+
+- Stop following symlink. Symlinks are now ignored: {pull}1686[1686]
+
+==== Bugfixes
+
+*Affecting all Beats*
+
+- Reset backoff factor on partial ACK. {issue}1803[1803]
+- Fix beats load balancer deadlock if max_retries: -1 or publish_async is enabled in filebeat. {issue}1829[1829]
+- Fix logstash output with pipelining mode enabled not reconnecting. {issue}1876[1876]
+- Empty configuration sections become merge-able with variables containing full path. {pull}1900[1900]
+- Fix error message about required fields missing not printing the missing field name. {pull}1900[1900]
+
+*Metricbeat*
+
+- Fix the CPU values returned for each core. {issue}1863[1863]
+
+*Packetbeat*
+
+- Add missing nil-check to memcached GapInStream handler. {issue}1162[1162]
+- Fix NFSv4 Operation returning the first found first-class operation available in compound requests. {pull}1821[1821]
+- Fix TCP overlapping segments not being handled correctly. {pull}1898[1898]
+
+*Winlogbeat*
+
+- Fix issue with rendering forwarded event log records. {pull}1891[1891]
+
+==== Added
+
+*Affecting all Beats*
+
+- Improve error message if compiling regular expression from config files fails. {pull}1900[1900]
+- Compression support in the Elasticsearch output. {pull}1835[1835]
+
+*Metricbeat*
+
+- Add MongoDB module. {pull}1837[1837]
+
+
+[[release-notes-5.0.0-alpha3]]
+=== Beats version 5.0.0-alpha3
+https://github.com/elastic/beats/compare/v5.0.0-alpha2...v5.0.0-alpha3[View commits]
+
+==== Breaking changes
+
+*Affecting all Beats*
+
+- All configuration settings under `shipper:` are moved to be top level configuration settings. I.e.
+  `shipper.name:` becomes `name:` in the configuration file. {pull}1570[1570]
+
+*Topbeat*
+
+- Topbeat is replaced by Metricbeat.
+
+*Filebeat*
+
+- The state for files which fall under ignore_older is not stored anymore. This has the consequence, that if a file which fell under ignore_older is updated, the whole file will be crawled.
+
+==== Bugfixes
+
+*Winlogbeat*
+
+- Adding missing argument to the "Stop processing" log message. {pull}1590[1590]
+
+==== Added
+
+*Affecting all Beats*
+
+- Add conditions to generic filtering. {pull}1623[1623]
+
+*Metricbeat*
+
+- First public release, containing the following modules: apache, mysql, nginx, redis, system, and zookeeper.
+
+*Filebeat*
+
+- The registry format was changed to an array instead of dict. The migration to the new format will happen automatically at the first startup. {pull}1703[1703]
+
+==== Deprecated
+
+*Affecting all Beats*
+
+- The support for doing GeoIP lookups is deprecated and will be removed in version 6.0. {pull}1601[1601]
+
+[[release-notes-1.2.3]]
+=== Beats version 1.2.3
+https://github.com/elastic/beats/compare/v1.2.2...v1.2.3[View commits]
+
+==== Bugfixes
+
+*Topbeat*
+
+- Fix high CPU usage when using filtering under Windows. {pull}1598[1598]
+
+*Filebeat*
+
+- Fix rotation issue with ignore_older. {issue}1528[1528]
+
+*Winlogbeat*
+
+- Fix panic when reading messages larger than 32K characters on Windows XP and 2003. {pull}1498[1498]
+
+==== Added
+
+*Filebeat*
+
+- Prevent file opening for files which reached ignore_older. {pull}1649[1649]
+
+
+[[release-notes-5.0.0-alpha2]]
+=== Beats version 5.0.0-alpha2
+https://github.com/elastic/beats/compare/v5.0.0-alpha1...v5.0.0-alpha2[View commits]
+
+==== Breaking changes
+
+*Affecting all Beats*
+
+- On DEB/RPM installations, the binary files are now found under `/usr/share/{{beat_name}}/bin`, not in `/usr/bin`. {pull}1385[1385]
+- The logs are written by default to self rotating files, instead of syslog. {pull}1371[1371]
+- Remove deprecated `host` option from elasticsearch, logstash and redis outputs. {pull}1474[1474]
+
+*Packetbeat*
+
+- Configuration of redis topology support changed. {pull}1353[1353]
+- Move all Packetbeat configuration options under the packetbeat namespace {issue}1417[1417]
+
+*Filebeat*
+
+- Default location for the registry file was changed to be `data/registry` from the binary directory,
+  rather than `.filebeat` in the current working directory. This affects installations for zip/tar.gz/source,
+  the location for DEB and RPM packages stays the same. {pull}1373[1373]
+
+==== Bugfixes
+
+*Affecting all Beats*
+
+- Drain response buffers when pipelining is used by Redis output. {pull}1353[1353]
+- Unterminated environment variable expressions in config files will now cause an error {pull}1389[1389]
+- Fix issue with the automatic template loading when Elasticsearch is not available on Beat start. {issue}1321[1321]
+- Fix bug affecting -cpuprofile, -memprofile, and -httpprof CLI flags {pull}1415[1415]
+- Fix race when multiple outputs access the same event with logstash output manipulating event {issue}1410[1410] {pull}1428[1428]
+- Seed random number generator using crypto.rand package. {pull}1503{1503]
+- Fix beats hanging in -configtest {issue}1213[1213]
+- Fix kafka log message output {pull}1516[1516]
+
+*Filebeat*
+
+- Improvements in registrar dealing with file rotation. {pull}1281[1281]
+- Fix issue with JSON decoding where `@timestamp` or `type` keys with the wrong type could cause Filebeat
+  to crash. {issue}1378[1378]
+- Fix issue with JSON decoding where values having `null` as values could crash Filebeat. {issue}1466[1466]
+- Multiline reader normalizing newline to use `\n`. {pull}1552[1552]
+
+*Winlogbeat*
+
+- Fix panic when reading messages larger than 32K characters on Windows XP and 2003. {pull}1498[1498]
+- Fix panic that occurs when reading a large events on Windows Vista and newer. {pull}1499[1499]
+
+==== Added
+
+*Affecting all Beats*
+
+- Add support for TLS to Redis output. {pull}1353[1353]
+- Add SOCKS5 proxy support to Redis output. {pull}1353[1353]
+- Failover and load balancing support in redis output. {pull}1353[1353]
+- Multiple-worker per host support for redis output. {pull}1353[1353]
+- Added ability to escape `${x}` in config files to avoid environment variable expansion {pull}1389[1389]
+- Configuration options and CLI flags for setting the home, data and config paths. {pull}1373[1373]
+- Configuration options and CLI flags for setting the default logs path. {pull}1437[1437]
+- Update to Go 1.6.2 {pull}1447[1447]
+- Add Elasticsearch template files compatible with Elasticsearch 2.x. {pull}1501[1501]
+- Add scripts for managing the dashboards of a single Beat {pull}1359[1359]
+
+*Packetbeat*
+
+- Fix compile issues for OpenBSD. {pull}1347[1347]
+
+*Topbeat*
+
+- Updated elastic/gosigar version so Topbeat can compile on OpenBSD. {pull}1403[1403]
+
+[[release-notes-1.2.2]]
+=== Beats version 1.2.2
+https://github.com/elastic/beats/compare/v1.2.0...v1.2.2[View commits]
+
+==== Bugfixes
+
+*Affecting all Beats*
+
+- Fix race when multiple outputs access the same event with Logstash output manipulating event. {issue}1410[1410]
+- Fix go-daemon (supervisor used in init scripts) hanging when executed over SSH. {issue}1394[1394]
+
+*Filebeat*
+
+- Improvements in registrar dealing with file rotation. {issue}1281[1281]
+
 
 [[release-notes-1.2.1]]
 === Beats version 1.2.1
@@ -120,7 +300,7 @@ https://github.com/elastic/beats/compare/v1.2.0...v1.2.1[View commits]
 
 [[release-notes-5.0.0-alpha1]]
 === Beats version 5.0.0-alpha1
-https://github.com/elastic/beats/compare/v1.2.0...5.0.0-alpha1[View commits]
+https://github.com/elastic/beats/compare/v1.2.0...v5.0.0-alpha1[View commits]
 
 ==== Breaking changes
 

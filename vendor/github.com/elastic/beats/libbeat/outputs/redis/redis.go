@@ -2,6 +2,7 @@ package redis
 
 import (
 	"errors"
+	"expvar"
 	"fmt"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/elastic/beats/libbeat/logp"
 	"github.com/elastic/beats/libbeat/outputs"
 	"github.com/elastic/beats/libbeat/outputs/mode"
+	"github.com/elastic/beats/libbeat/outputs/mode/modeutil"
 	"github.com/elastic/beats/libbeat/outputs/transport"
 )
 
@@ -18,8 +20,14 @@ type redisOut struct {
 	topology
 }
 
+var debugf = logp.MakeDebug("redis")
+
+// Metrics that can retrieved through the expvar web interface.
 var (
-	debugf = logp.MakeDebug("redis")
+	statReadBytes   = expvar.NewInt("libbeatRedisPublishReadBytes")
+	statWriteBytes  = expvar.NewInt("libbeatRedisPublishWriteBytes")
+	statReadErrors  = expvar.NewInt("libbeatRedisPublishReadErrors")
+	statWriteErrors = expvar.NewInt("libbeatRedisPublishWriteErrors")
 )
 
 const (
@@ -75,6 +83,12 @@ func (r *redisOut) init(cfg *common.Config, expireTopo int) error {
 		Timeout: config.Timeout,
 		Proxy:   &config.Proxy,
 		TLS:     tls,
+		Stats: &transport.IOStats{
+			Read:        statReadBytes,
+			Write:       statWriteBytes,
+			ReadErrors:  statReadErrors,
+			WriteErrors: statWriteErrors,
+		},
 	}
 
 	// configure topology support
@@ -86,7 +100,7 @@ func (r *redisOut) init(cfg *common.Config, expireTopo int) error {
 	})
 
 	// configure publisher clients
-	clients, err := mode.MakeClients(cfg, func(host string) (mode.ProtocolClient, error) {
+	clients, err := modeutil.MakeClients(cfg, func(host string) (mode.ProtocolClient, error) {
 		t, err := transport.NewClient(transp, "tcp", host, config.Port)
 		if err != nil {
 			return nil, err
@@ -98,7 +112,7 @@ func (r *redisOut) init(cfg *common.Config, expireTopo int) error {
 	}
 
 	logp.Info("Max Retries set to: %v", sendRetries)
-	m, err := mode.NewConnectionMode(clients, !config.LoadBalance,
+	m, err := modeutil.NewConnectionMode(clients, !config.LoadBalance,
 		maxAttempts, defaultWaitRetry, config.Timeout, defaultMaxWaitRetry)
 	if err != nil {
 		return err
@@ -113,7 +127,7 @@ func (r *redisOut) Close() error {
 }
 
 func (r *redisOut) PublishEvent(
-signaler op.Signaler,
+	signaler op.Signaler,
 	opts outputs.Options,
 	event common.MapStr,
 ) error {
@@ -121,7 +135,7 @@ signaler op.Signaler,
 }
 
 func (r *redisOut) BulkPublish(
-signaler op.Signaler,
+	signaler op.Signaler,
 	opts outputs.Options,
 	events []common.MapStr,
 ) error {

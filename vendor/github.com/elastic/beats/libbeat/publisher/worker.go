@@ -104,8 +104,7 @@ func (ws *workerSignal) Init() {
 
 func stopQueue(qu chan message) {
 	close(qu)
-	for msg := range qu {
-		// clear queue and send fail signal
+	for msg := range qu { // clear queue and send fail signal
 		op.SigFailed(msg.context.Signal, nil)
 	}
 
@@ -125,10 +124,9 @@ func send(qu, bulkQu chan message, m message) {
 	}
 
 	select {
-	case <-done:
-	// blocks if nil
-	// client closed -> signal drop
-	// XXX: send Cancel or Fail signal?
+	case <-done: // blocks if nil
+		// client closed -> signal drop
+		// XXX: send Cancel or Fail signal?
 		op.SigFailed(m.context.Signal, ErrClientClosed)
 
 	case ch <- m:

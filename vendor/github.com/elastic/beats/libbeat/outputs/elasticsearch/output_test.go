@@ -102,13 +102,13 @@ func TestOneEvent(t *testing.T) {
 	event["dst_port"] = 6379
 	event["src_ip"] = "192.168.22.2"
 	event["src_port"] = 6378
-	event["shipper"] = "appserver1"
+	event["name"] = "appserver1"
 	r := common.MapStr{}
 	r["request"] = "MGET key1"
 	r["response"] = "value1"
 
 	index := fmt.Sprintf("%s-%d.%02d.%02d", output.index, ts.Year(), ts.Month(), ts.Day())
-	logp.Debug("output_elasticsearch", "index = %s", index)
+	debugf("index = %s", index)
 
 	client := output.randomClient()
 	client.CreateIndex(index, common.MapStr{
@@ -140,7 +140,7 @@ func TestOneEvent(t *testing.T) {
 	}()
 
 	params := map[string]string{
-		"q": "shipper:appserver1",
+		"q": "name:appserver1",
 	}
 	_, resp, err := client.SearchURI(index, "", params)
 
@@ -148,7 +148,7 @@ func TestOneEvent(t *testing.T) {
 		t.Errorf("Failed to query elasticsearch for index(%s): %s", index, err)
 		return
 	}
-	logp.Debug("output_elasticsearch", "resp = %s", resp)
+	debugf("resp = %s", resp)
 	if resp.Hits.Total != 1 {
 		t.Errorf("Wrong number of results: %d", resp.Hits.Total)
 	}
@@ -174,7 +174,7 @@ func TestEvents(t *testing.T) {
 	event["dst_port"] = 6379
 	event["src_ip"] = "192.168.22.2"
 	event["src_port"] = 6378
-	event["shipper"] = "appserver1"
+	event["name"] = "appserver1"
 	r := common.MapStr{}
 	r["request"] = "MGET key1"
 	r["response"] = "value1"
@@ -210,7 +210,7 @@ func TestEvents(t *testing.T) {
 	output.randomClient().Refresh(index)
 
 	params := map[string]string{
-		"q": "shipper:appserver1",
+		"q": "name:appserver1",
 	}
 
 	defer func() {
@@ -307,25 +307,4 @@ func TestBulkEvents(t *testing.T) {
 
 	output = createElasticsearchConnection(50, 5)
 	testBulkWithParams(t, output)
-}
-
-func TestEnableTTL(t *testing.T) {
-
-	if testing.Verbose() {
-		logp.LogInit(logp.LOG_DEBUG, "", false, true, []string{"topology", "output_elasticsearch", "elasticsearch"})
-	}
-
-	output := createElasticsearchConnection(0, 0)
-	output.randomClient().Delete(".packetbeat-topology", "", "", nil)
-
-	err := output.EnableTTL()
-	if err != nil {
-		t.Errorf("Fail to enable TTL: %s", err)
-	}
-
-	// should succeed also when index already exists
-	err = output.EnableTTL()
-	if err != nil {
-		t.Errorf("Fail to enable TTL: %s", err)
-	}
 }

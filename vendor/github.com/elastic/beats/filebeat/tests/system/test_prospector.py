@@ -1,6 +1,7 @@
 from filebeat import BaseTest
 import os
 import time
+import unittest
 
 """
 Tests for the prospector functionality.
@@ -9,7 +10,7 @@ Tests for the prospector functionality.
 
 class Test(BaseTest):
 
-    def test_ignore_old_files(self):
+    def test_ignore_older_files(self):
         """
         Should ignore files there were not modified for longer then
         the `ignore_older` setting.
@@ -37,7 +38,7 @@ class Test(BaseTest):
         # wait for the "Skipping file" log message
         self.wait_until(
             lambda: self.log_contains(
-                "Skipping file (older than ignore older of 1s"),
+                "Ignore file because ignore_older reached"),
             max_timeout=10)
 
         proc.check_kill_and_wait()
@@ -163,9 +164,6 @@ class Test(BaseTest):
             lambda: self.output_has(lines=1),
             max_timeout=15)
 
-        # TODO: Find better solution when filebeat did crawl the file
-        # Idea: Special flag to filebeat so that filebeat is only doing and
-        # crawl and then finishes
         filebeat.check_kill_and_wait()
 
         output = self.read_output()
@@ -356,7 +354,7 @@ class Test(BaseTest):
             file.write("Line {}\n".format(lines))
 
         self.wait_until(
-                # allow for events to be send multiple times due to log rotation
+                # allow for events to be sent multiple times due to log rotation
                 lambda: self.output_count(lambda x: x >= lines),
                 max_timeout=5)
 
@@ -513,3 +511,45 @@ class Test(BaseTest):
                 max_timeout=10)
 
         filebeat.check_kill_and_wait()
+
+    def test_skip_symlinks(self):
+        """
+        Test that symlinks are skipped
+        """
+        self.render_config_template(
+            path=os.path.abspath(self.working_dir) + "/log/*",
+        )
+
+        os.mkdir(self.working_dir + "/log/")
+        testfile = self.working_dir + "/log/test-2016.log"
+        symlink_file = self.working_dir + "/log/test.log"
+
+        # write first line
+        with open(testfile, 'a') as file:
+            file.write("Hello world\n")
+
+        if os.name == "nt":
+            import win32file
+            win32file.CreateSymbolicLink(symlink_file, testfile, 0)
+        else:
+            os.symlink(testfile, symlink_file)
+
+        filebeat = self.start_beat()
+
+        # wait for file to be skipped
+        self.wait_until(
+            lambda: self.log_contains("skipped as it is a symlink"),
+            max_timeout=10)
+
+        # wait for log to be read
+        self.wait_until(
+            lambda: self.output_has(lines=1),
+            max_timeout=15)
+
+        time.sleep(5)
+        filebeat.check_kill_and_wait()
+
+        data = self.read_output()
+
+        # Make sure there is only one entry, means it didn't follow the symlink
+        assert len(data) == 1

@@ -2,45 +2,31 @@ package harvester
 
 import (
 	"errors"
-	"io"
 	"os"
+
+	"golang.org/x/text/transform"
 
 	"github.com/elastic/beats/filebeat/config"
 	"github.com/elastic/beats/filebeat/harvester/encoding"
+	"github.com/elastic/beats/filebeat/harvester/processor"
+	"github.com/elastic/beats/filebeat/harvester/reader"
+	"github.com/elastic/beats/filebeat/harvester/source"
 	"github.com/elastic/beats/filebeat/input"
+	"github.com/elastic/beats/filebeat/input/file"
 	"github.com/elastic/beats/libbeat/logp"
-	"golang.org/x/text/transform"
 )
 
 // Log harvester reads files line by line and sends events to the defined output
 func (h *Harvester) Harvest() {
-	defer func() {
-		// On completion, push offset so we can continue where we left off if we relaunch on the same file
-		if h.Stat != nil {
-			h.Stat.Return <- h.GetOffset()
-		}
 
-		logp.Debug("harvester", "Stopping harvester for file: %s", h.Path)
+	// Makes sure file is properly closed when the harvester is stopped
+	defer h.close()
 
-		// Make sure file is closed as soon as harvester exits
-		// If file was never properly opened, it can't be closed
-		if h.file != nil {
-			h.file.Close()
-			logp.Debug("harvester", "Stopping harvester, closing file: %s", h.Path)
-		} else {
-			logp.Debug("harvester", "Stopping harvester, NOT closing file as file info not available: %s", h.Path)
-		}
-	}()
+	h.State.Finished = false
 
 	enc, err := h.open()
 	if err != nil {
 		logp.Err("Stop Harvesting. Unexpected file opening error: %s", err)
-		return
-	}
-
-	h.fileInfo, err = h.file.Stat()
-	if err != nil {
-		logp.Err("Stop Harvesting. Unexpected file stat rror: %s", err)
 		return
 	}
 
@@ -49,39 +35,43 @@ func (h *Harvester) Harvest() {
 	// TODO: NewLineReader uses additional buffering to deal with encoding and testing
 	//       for new lines in input stream. Simple 8-bit based encodings, or plain
 	//       don't require 'complicated' logic.
-	config := h.Config
-	readerConfig := logFileReaderConfig{
-		forceClose:         config.ForceCloseFiles,
-		closeOlder:         config.CloseOlderDuration,
-		backoffDuration:    config.BackoffDuration,
-		maxBackoffDuration: config.MaxBackoffDuration,
-		backoffFactor:      config.BackoffFactor,
+	cfg := h.Config
+	readerConfig := reader.LogFileReaderConfig{
+		ForceClose:         cfg.ForceCloseFiles,
+		CloseOlder:         cfg.CloseOlder,
+		BackoffDuration:    cfg.Backoff,
+		MaxBackoffDuration: cfg.MaxBackoff,
+		BackoffFactor:      cfg.BackoffFactor,
 	}
 
-	reader, err := createLineReader(
-		h.file, enc, config.BufferSize, config.MaxBytes, readerConfig,
-		config.JSON, config.Multiline)
+	processor, err := createLineProcessor(
+		h.file, enc, cfg.BufferSize, cfg.MaxBytes, readerConfig,
+		cfg.JSON, cfg.Multiline, h.done)
 	if err != nil {
 		logp.Err("Stop Harvesting. Unexpected encoding line reader error: %s", err)
 		return
 	}
 
+	// Always report the state before starting a harvester
+	if !h.SendStateUpdate() {
+		return
+	}
+
 	for {
+
+		select {
+		case <-h.done:
+			return
+		default:
+		}
+
 		// Partial lines return error and are only read on completion
-		ts, text, bytesRead, jsonFields, err := readLine(reader)
+		ts, text, bytesRead, jsonFields, err := readLine(processor)
 		if err != nil {
-			if err == errFileTruncate {
-				seeker, ok := h.file.(io.Seeker)
-				if !ok {
-					logp.Err("can not seek source")
-					return
-				}
-
+			if err == reader.ErrFileTruncate {
 				logp.Info("File was truncated. Begin reading file from offset 0: %s", h.Path)
-
 				h.SetOffset(0)
-				seeker.Seek(h.GetOffset(), os.SEEK_SET)
-				continue
+				return
 			}
 
 			logp.Info("Read line error: %s", err)
@@ -89,7 +79,7 @@ func (h *Harvester) Harvest() {
 		}
 
 		// Update offset if complete line has been processed
-		h.SetOffset(h.GetOffset() + int64(bytesRead))
+		h.updateOffset(int64(bytesRead))
 
 		event := h.createEvent()
 
@@ -102,7 +92,9 @@ func (h *Harvester) Harvest() {
 		}
 
 		// Always send event to update state, also if lines was skipped
-		h.sendEvent(event)
+		if !h.sendEvent(event) {
+			return
+		}
 	}
 }
 
@@ -110,21 +102,32 @@ func (h *Harvester) Harvest() {
 // By default the offset is set to 0, means no bytes read. This can be used to report the status
 // of a harvester
 func (h *Harvester) createEvent() *input.FileEvent {
-	return &input.FileEvent{
+	event := &input.FileEvent{
 		EventMetadata: h.Config.EventMetadata,
 		Source:        h.Path,
 		InputType:     h.Config.InputType,
 		DocumentType:  h.Config.DocumentType,
-		Offset:        h.GetOffset(),
+		Offset:        h.getOffset(),
 		Bytes:         0,
-		Fileinfo:      &h.fileInfo,
+		Fileinfo:      h.State.Fileinfo,
 		JSONConfig:    h.Config.JSON,
 	}
+
+	if h.Config.InputType != config.StdinInputType {
+		event.FileState = h.GetState()
+	}
+	return event
 }
 
 // sendEvent sends event to the spooler channel
-func (h *Harvester) sendEvent(event *input.FileEvent) {
-	h.SpoolerChan <- event // ship the new event downstream
+// Return false if event was not sent
+func (h *Harvester) sendEvent(event *input.FileEvent) bool {
+	select {
+	case <-h.done:
+		return false
+	case h.SpoolerChan <- event: // ship the new event downstream
+		return true
+	}
 }
 
 // shouldExportLine decides if the line is exported or not based on
@@ -149,43 +152,27 @@ func (h *Harvester) shouldExportLine(line string) bool {
 
 }
 
-// open does open the file given under h.Path and assigns the file handler to h.file
-func (h *Harvester) open() (encoding.Encoding, error) {
-	// Special handling that "-" means to read from standard input
-	if h.Config.InputType == config.StdinInputType {
-		return h.openStdin()
-	}
-	return h.openFile()
-}
-
-func (h *Harvester) openStdin() (encoding.Encoding, error) {
-	h.file = pipeSource{os.Stdin}
-	return h.encoding(h.file)
-}
-
 // openFile opens a file and checks for the encoding. In case the encoding cannot be detected
 // or the file cannot be opened because for example of failing read permissions, an error
 // is returned and the harvester is closed. The file will be picked up again the next time
 // the file system is scanned
 func (h *Harvester) openFile() (encoding.Encoding, error) {
-	var file *os.File
-	var err error
 	var encoding encoding.Encoding
 
-	file, err = input.ReadOpen(h.Path)
+	f, err := file.ReadOpen(h.Path)
 	if err == nil {
 		// Check we are not following a rabbit hole (symlinks, etc.)
-		if !input.IsRegularFile(file) {
+		if !file.IsRegular(f) {
 			return nil, errors.New("Given file is not a regular file.")
 		}
 
-		encoding, err = h.encoding(file)
+		encoding, err = h.encoding(f)
 		if err != nil {
 
 			if err == transform.ErrShortSrc {
-				logp.Info("Initialising encoding for '%v' failed due to file being too short", file)
+				logp.Info("Initialising encoding for '%v' failed due to file being too short", f)
 			} else {
-				logp.Err("Initialising encoding for '%v' failed: %v", file, err)
+				logp.Err("Initialising encoding for '%v' failed: %v", f, err)
 			}
 			return nil, err
 		}
@@ -196,25 +183,25 @@ func (h *Harvester) openFile() (encoding.Encoding, error) {
 	}
 
 	// update file offset
-	err = h.initFileOffset(file)
+	err = h.initFileOffset(f)
 	if err != nil {
 		return nil, err
 	}
 
 	// yay, open file
-	h.file = fileSource{file}
+	h.file = source.File{f}
 	return encoding, nil
 }
 
 func (h *Harvester) initFileOffset(file *os.File) error {
 	offset, err := file.Seek(0, os.SEEK_CUR)
 
-	if h.GetOffset() > 0 {
+	if h.getOffset() > 0 {
 		// continue from last known offset
 
 		logp.Debug("harvester",
-			"harvest: %q position:%d (offset snapshot:%d)", h.Path, h.GetOffset(), offset)
-		_, err = file.Seek(h.GetOffset(), os.SEEK_SET)
+			"harvest: %q position:%d (offset snapshot:%d)", h.Path, h.getOffset(), offset)
+		_, err = file.Seek(h.getOffset(), os.SEEK_SET)
 	} else if h.Config.TailFiles {
 		// tail file if file is new and tail_files config is set
 
@@ -233,28 +220,92 @@ func (h *Harvester) initFileOffset(file *os.File) error {
 	return err
 }
 
-// GetState returns current state of harvester
-func (h *Harvester) GetState() *input.FileState {
-
-	state := input.FileState{
-		Source:      h.Path,
-		Offset:      h.GetOffset(),
-		FileStateOS: input.GetOSFileState(&h.Stat.Fileinfo),
-	}
-
-	return &state
-}
-
 func (h *Harvester) SetOffset(offset int64) {
-	h.offsetLock.Lock()
-	defer h.offsetLock.Unlock()
-
 	h.offset = offset
 }
 
-func (h *Harvester) GetOffset() int64 {
-	h.offsetLock.Lock()
-	defer h.offsetLock.Unlock()
-
+func (h *Harvester) getOffset() int64 {
 	return h.offset
+}
+
+func (h *Harvester) updateOffset(increment int64) {
+	h.offset += increment
+}
+
+// SendStateUpdate send an empty event with the current state to update the registry
+func (h *Harvester) SendStateUpdate() bool {
+	logp.Debug("harvester", "Update state: %s, offset: %v", h.Path, h.offset)
+	return h.sendEvent(h.createEvent())
+}
+
+func (h *Harvester) GetState() file.State {
+	h.stateMutex.Lock()
+	defer h.stateMutex.Unlock()
+
+	h.refreshState()
+	return h.State
+}
+
+// refreshState refreshes the values in State with the values from the harvester itself
+func (h *Harvester) refreshState() {
+	h.State.Source = h.Path
+	h.State.Offset = h.getOffset()
+	h.State.FileStateOS = file.GetOSState(h.State.Fileinfo)
+}
+
+func (h *Harvester) close() {
+	// Mark harvester as finished
+	h.State.Finished = true
+
+	// On completion, push offset so we can continue where we left off if we relaunch on the same file
+	h.SendStateUpdate()
+
+	logp.Debug("harvester", "Stopping harvester for file: %s", h.Path)
+
+	// Make sure file is closed as soon as harvester exits
+	// If file was never properly opened, it can't be closed
+	if h.file != nil {
+		h.file.Close()
+		logp.Debug("harvester", "Stopping harvester, closing file: %s", h.Path)
+	} else {
+		logp.Warn("harvester", "Stopping harvester, NOT closing file as file info not available: %s", h.Path)
+	}
+}
+
+func createLineProcessor(
+	in source.FileSource,
+	codec encoding.Encoding,
+	bufferSize int,
+	maxBytes int,
+	readerConfig reader.LogFileReaderConfig,
+	jsonConfig *processor.JSONConfig,
+	mlrConfig *processor.MultilineConfig,
+	done chan struct{},
+) (processor.LineProcessor, error) {
+	var p processor.LineProcessor
+	var err error
+
+	fileReader, err := reader.NewLogFileReader(in, readerConfig, done)
+	if err != nil {
+		return nil, err
+	}
+
+	p, err = processor.NewLineEncoder(fileReader, codec, bufferSize)
+	if err != nil {
+		return nil, err
+	}
+
+	if jsonConfig != nil {
+		p = processor.NewJSONProcessor(p, jsonConfig)
+	}
+
+	p = processor.NewStripNewline(p)
+	if mlrConfig != nil {
+		p, err = processor.NewMultiline(p, "\n", maxBytes, mlrConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return processor.NewLimitProcessor(p, maxBytes), nil
 }

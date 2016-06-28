@@ -4,17 +4,33 @@ package logstash
 // registered with all output plugins
 
 import (
+	"expvar"
 	"time"
+
+	"github.com/elastic/go-lumber/log"
 
 	"github.com/elastic/beats/libbeat/common"
 	"github.com/elastic/beats/libbeat/common/op"
 	"github.com/elastic/beats/libbeat/logp"
 	"github.com/elastic/beats/libbeat/outputs"
 	"github.com/elastic/beats/libbeat/outputs/mode"
+	"github.com/elastic/beats/libbeat/outputs/mode/modeutil"
 	"github.com/elastic/beats/libbeat/outputs/transport"
 )
 
 var debug = logp.MakeDebug("logstash")
+
+// Metrics that can retrieved through the expvar web interface.
+var (
+	ackedEvents            = expvar.NewInt("libbeatLogstashPublishedAndAckedEvents")
+	eventsNotAcked         = expvar.NewInt("libbeatLogstashPublishedButNotAckedEvents")
+	publishEventsCallCount = expvar.NewInt("libbeatLogstashPublishEventsCallCount")
+
+	statReadBytes   = expvar.NewInt("libbeatLogstashPublishReadBytes")
+	statWriteBytes  = expvar.NewInt("libbeatLogstashPublishWriteBytes")
+	statReadErrors  = expvar.NewInt("libbeatLogstashPublishReadErrors")
+	statWriteErrors = expvar.NewInt("libbeatLogstashPublishWriteErrors")
+)
 
 const (
 	defaultWaitRetry = 1 * time.Second
@@ -25,6 +41,8 @@ const (
 )
 
 func init() {
+	log.Logger = logstashLogger{}
+
 	outputs.RegisterOutputPlugin("logstash", new)
 }
 
@@ -62,15 +80,30 @@ func (lj *logstash) init(cfg *common.Config) error {
 		Timeout: config.Timeout,
 		Proxy:   &config.Proxy,
 		TLS:     tls,
-	}
-	clients, err := mode.MakeClients(cfg, makeClientFactory(&config, transp))
-	if err != nil {
-		return err
+		Stats: &transport.IOStats{
+			Read:        statReadBytes,
+			Write:       statWriteBytes,
+			ReadErrors:  statReadErrors,
+			WriteErrors: statWriteErrors,
+		},
 	}
 
 	logp.Info("Max Retries set to: %v", sendRetries)
-	m, err := mode.NewConnectionMode(clients, !config.LoadBalance,
-		maxAttempts, defaultWaitRetry, config.Timeout, defaultMaxWaitRetry)
+	var m mode.ConnectionMode
+	if config.Pipelining == 0 {
+		clients, err := modeutil.MakeClients(cfg, makeClientFactory(&config, transp))
+		if err == nil {
+			m, err = modeutil.NewConnectionMode(clients, !config.LoadBalance,
+				maxAttempts, defaultWaitRetry, config.Timeout, defaultMaxWaitRetry)
+		}
+	} else {
+		clients, err := modeutil.MakeAsyncClients(cfg,
+			makeAsyncClientFactory(&config, transp))
+		if err == nil {
+			m, err = modeutil.NewAsyncConnectionMode(clients, !config.LoadBalance,
+				maxAttempts, defaultWaitRetry, config.Timeout, defaultMaxWaitRetry)
+		}
+	}
 	if err != nil {
 		return err
 	}
@@ -81,7 +114,10 @@ func (lj *logstash) init(cfg *common.Config) error {
 	return nil
 }
 
-func makeClientFactory(cfg *logstashConfig, tcfg *transport.Config) mode.ClientFactory {
+func makeClientFactory(
+	cfg *logstashConfig,
+	tcfg *transport.Config,
+) modeutil.ClientFactory {
 	compressLvl := cfg.CompressionLevel
 	maxBulkSz := cfg.BulkMaxSize
 	to := cfg.Timeout
@@ -95,6 +131,24 @@ func makeClientFactory(cfg *logstashConfig, tcfg *transport.Config) mode.ClientF
 	}
 }
 
+func makeAsyncClientFactory(
+	cfg *logstashConfig,
+	tcfg *transport.Config,
+) modeutil.AsyncClientFactory {
+	compressLvl := cfg.CompressionLevel
+	maxBulkSz := cfg.BulkMaxSize
+	queueSize := cfg.Pipelining - 1
+	to := cfg.Timeout
+
+	return func(host string) (mode.AsyncProtocolClient, error) {
+		t, err := transport.NewClient(tcfg, "tcp", host, cfg.Port)
+		if err != nil {
+			return nil, err
+		}
+		return newAsyncLumberjackClient(t, queueSize, compressLvl, maxBulkSz, to, cfg.Index)
+	}
+}
+
 func (lj *logstash) Close() error {
 	return lj.mode.Close()
 }
@@ -103,7 +157,7 @@ func (lj *logstash) Close() error {
 //       processing (e.g. for filebeat). Batch like processing might reduce
 //       send/receive overhead per event for other implementors too.
 func (lj *logstash) PublishEvent(
-signaler op.Signaler,
+	signaler op.Signaler,
 	opts outputs.Options,
 	event common.MapStr,
 ) error {
@@ -113,7 +167,7 @@ signaler op.Signaler,
 // BulkPublish implements the BulkOutputer interface pushing a bulk of events
 // via lumberjack.
 func (lj *logstash) BulkPublish(
-trans op.Signaler,
+	trans op.Signaler,
 	opts outputs.Options,
 	events []common.MapStr,
 ) error {

@@ -180,19 +180,21 @@ func RenderEvent(
 			return "", err
 		}
 
-		// Ignore the error and return the original error with the response.
-		xml, _ = RenderEventNoMessage(eventHandle, renderBuf)
+		xml, err = RenderEventXML(eventHandle, renderBuf)
 	}
 
 	return xml, err
 }
 
-// RenderEventNoMessage render the events as XML but without the RenderingInfo (message).
-func RenderEventNoMessage(eventHandle EvtHandle, renderBuf []byte) (string, error) {
+// RenderEventXML renders the event as XML. If the event is already rendered, as
+// in a forwarded event whose content type is "RenderedText", then the XML will
+// include the RenderingInfo (message). If the event is not rendered then the
+// XML will not include the message, and in this case RenderEvent should be
+// used.
+func RenderEventXML(eventHandle EvtHandle, renderBuf []byte) (string, error) {
 	var bufferUsed, propertyCount uint32
 	err := _EvtRender(0, eventHandle, EvtRenderEventXml, uint32(len(renderBuf)),
 		&renderBuf[0], &bufferUsed, &propertyCount)
-	bufferUsed *= 2 // It returns the number of utf-16 chars.
 	if err == ERROR_INSUFFICIENT_BUFFER {
 		return "", sys.InsufficientBufferError{err, int(bufferUsed)}
 	}
@@ -200,7 +202,12 @@ func RenderEventNoMessage(eventHandle EvtHandle, renderBuf []byte) (string, erro
 		return "", err
 	}
 
-	xml, _, err := sys.UTF16BytesToString(renderBuf[0:bufferUsed])
+	if int(bufferUsed) > len(renderBuf) {
+		return "", fmt.Errorf("Windows EvtRender reported that wrote %d bytes "+
+			"to the buffer, but the buffer can only hold %d bytes",
+			bufferUsed, len(renderBuf))
+	}
+	xml, _, err := sys.UTF16BytesToString(renderBuf[:bufferUsed])
 	return xml, err
 }
 

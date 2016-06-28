@@ -74,7 +74,7 @@ func InitOutputs(
 		}
 
 		if !config.HasField("index") {
-			config.SetString("index", 0, beatName)
+			config.SetString("index", -1, beatName)
 		}
 
 		output, err := plugin(config, topologyExpire)
@@ -101,7 +101,7 @@ func CastBulkOutputer(out Outputer) BulkOutputer {
 }
 
 func (b *bulkOutputAdapter) BulkPublish(
-signal op.Signaler,
+	signal op.Signaler,
 	opts Options,
 	events []common.MapStr,
 ) error {

@@ -13,6 +13,9 @@ jmxproxybeat:
     username: "tomcat"
     password: "s3cret"
 
+  #ssl:
+    #cafile: "/path/to/ca/CA.pem"
+
   beans:
     - bean:
       name: java.lang:type=Memory
@@ -48,62 +51,62 @@ jmxproxybeat:
           name: TotalStartedThreadCount
         - attribute:
           name: PeakThreadCount
-    - bean:
-      name: java.lang:type=GarbageCollector,name=PS Scavenge
-      attributes:
-        - attribute:
-          name: CollectionCount
-        - attribute:
-          name: CollectionTime
-        - attribute:
-          name: LastGcInfo
-          keys:
-            - GcThreadCount
-            - duration
-            - endTime
-            - id
-    - bean:
-      name: java.lang:type=GarbageCollector,name=PS MarkSweep
-      attributes:
-        - attribute:
-          name: CollectionCount
-        - attribute:
-          name: CollectionTime
-        - attribute:
-          name: LastGcInfo
-          keys:
-            - GcThreadCount
-            - duration
-            - endTime
-            - id
-    - bean:
-      name: java.lang:type=GarbageCollector,name=ConcurrentMarkSweep
-      attributes:
-        - attribute:
-           name: CollectionCount
-        - attribute:
-           name: CollectionTime
-        - attribute:
-          name: LastGcInfo
-          keys:
-            - GcThreadCount
-            - duration
-            - endTime
-            - id
-    - bean:
-      name: java.lang:type=GarbageCollector,name=ParNew
-      attributes:
-        - attribute:
-           name: CollectionCount
-        - attribute:
-           name: CollectionTime
-        - attribute:
-          name: LastGcInfo
-          keys:
-            - GcThreadCount
-            - duration
-            - endTime
-            - id
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=PS Scavenge
+#      attributes:
+#        - attribute:
+#          name: CollectionCount
+#        - attribute:
+#          name: CollectionTime
+#        - attribute:
+#          name: LastGcInfo
+#          keys:
+#            - GcThreadCount
+#            - duration
+#            - endTime
+#            - id
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=PS MarkSweep
+#      attributes:
+#        - attribute:
+#          name: CollectionCount
+#        - attribute:
+#          name: CollectionTime
+#        - attribute:
+#          name: LastGcInfo
+#          keys:
+#            - GcThreadCount
+#            - duration
+#            - endTime
+#            - id
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=ConcurrentMarkSweep
+#      attributes:
+#        - attribute:
+#           name: CollectionCount
+#        - attribute:
+#           name: CollectionTime
+#        - attribute:
+#          name: LastGcInfo
+#          keys:
+#            - GcThreadCount
+#            - duration
+#            - endTime
+#            - id
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=ParNew
+#      attributes:
+#        - attribute:
+#           name: CollectionCount
+#        - attribute:
+#           name: CollectionTime
+#        - attribute:
+#          name: LastGcInfo
+#          keys:
+#            - GcThreadCount
+#            - duration
+#            - endTime
+#            - id
     - bean:
       name: java.lang:type=ClassLoading
       attributes:
@@ -163,4 +166,3 @@ jmxproxybeat:
       attributes:
         - attribute:
           name: TotalCompilationTime
-

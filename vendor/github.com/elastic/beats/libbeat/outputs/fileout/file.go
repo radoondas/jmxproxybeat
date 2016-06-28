@@ -17,6 +17,7 @@ type fileOutput struct {
 	rotator logp.FileRotator
 }
 
+// New instantiates a new file output instance.
 func New(cfg *common.Config, _ int) (outputs.Outputer, error) {
 	config := defaultConfig
 	if err := cfg.Unpack(&config); err != nil {
@@ -24,8 +25,8 @@ func New(cfg *common.Config, _ int) (outputs.Outputer, error) {
 	}
 
 	// disable bulk support in publisher pipeline
-	cfg.SetInt("flush_interval", 0, -1)
-	cfg.SetInt("bulk_max_size", 0, -1)
+	cfg.SetInt("flush_interval", -1, -1)
+	cfg.SetInt("bulk_max_size", -1, -1)
 
 	output := &fileOutput{}
 	if err := output.init(config); err != nil {
@@ -70,7 +71,7 @@ func (out *fileOutput) Close() error {
 }
 
 func (out *fileOutput) PublishEvent(
-sig op.Signaler,
+	sig op.Signaler,
 	opts outputs.Options,
 	event common.MapStr,
 ) error {

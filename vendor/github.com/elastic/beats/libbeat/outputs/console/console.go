@@ -50,7 +50,7 @@ func (c *console) Close() error {
 }
 
 func (c *console) PublishEvent(
-s op.Signaler,
+	s op.Signaler,
 	opts outputs.Options,
 	event common.MapStr,
 ) error {

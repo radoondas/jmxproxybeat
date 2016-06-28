@@ -15,9 +15,9 @@ const (
 )
 
 func newAsyncPipeline(
-pub *Publisher,
-hwm, bulkHWM int,
-ws *workerSignal,
+	pub *Publisher,
+	hwm, bulkHWM int,
+	ws *workerSignal,
 ) *asyncPipeline {
 	p := &asyncPipeline{pub: pub}
 
@@ -52,9 +52,9 @@ func (p *asyncPipeline) publish(m message) bool {
 }
 
 func makeAsyncOutput(
-ws *workerSignal,
-hwm, bulkHWM int,
-worker *outputWorker,
+	ws *workerSignal,
+	hwm, bulkHWM int,
+	worker *outputWorker,
 ) worker {
 	config := worker.config
 

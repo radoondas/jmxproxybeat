@@ -528,9 +528,8 @@ func rrsToMapStrs(records []mkdns.RR) []common.MapStr {
 		rrHeader := rr.Header()
 
 		mapStr := rrToMapStr(rr)
-		if len(mapStr) == 0 {
-			// OPT pseudo-RR returns an empty MapStr
-			resizeStrArray := make([]common.MapStr, len(mapStrArray) - 1)
+		if len(mapStr) == 0 { // OPT pseudo-RR returns an empty MapStr
+			resizeStrArray := make([]common.MapStr, len(mapStrArray)-1)
 			copy(resizeStrArray, mapStrArray)
 			mapStrArray = resizeStrArray
 			continue

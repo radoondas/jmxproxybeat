@@ -47,45 +47,45 @@ type TransactionalEventPublisher interface {
 }
 
 type Publisher struct {
-	shipperName          string               // Shipper name as set in the configuration file
-	hostname             string               // Host name as returned by the operation system
-	name                 string               // The shipperName if configured, the hostname otherwise
-	IpAddrs              []string
-	disabled             bool
-	Index                string
-	Output               []*outputWorker
-	TopologyOutput       outputs.TopologyOutputer
-	IgnoreOutgoing       bool
-	GeoLite              *libgeo.GeoIP
-	Filters              *filter.FilterList
+	shipperName    string // Shipper name as set in the configuration file
+	hostname       string // Host name as returned by the operation system
+	name           string // The shipperName if configured, the hostname otherwise
+	IpAddrs        []string
+	disabled       bool
+	Index          string
+	Output         []*outputWorker
+	TopologyOutput outputs.TopologyOutputer
+	IgnoreOutgoing bool
+	GeoLite        *libgeo.GeoIP
+	Filters        *filter.Filters
 
-	globalEventMetadata  common.EventMetadata // Fields and tags to add to each event.
+	globalEventMetadata common.EventMetadata // Fields and tags to add to each event.
 
 	RefreshTopologyTimer <-chan time.Time
 
-						  // On shutdown the publisher is finished first and the outputers next,
-						  // so no publisher will attempt to send messages on closed channels.
-						  // Note: beat data producers must be shutdown before the publisher plugin
-	wsPublisher          workerSignal
-	wsOutput             workerSignal
+	// On shutdown the publisher is finished first and the outputers next,
+	// so no publisher will attempt to send messages on closed channels.
+	// Note: beat data producers must be shutdown before the publisher plugin
+	wsPublisher workerSignal
+	wsOutput    workerSignal
 
-	pipelines            struct {
-				     sync  pipeline
-				     async pipeline
-			     }
+	pipelines struct {
+		sync  pipeline
+		async pipeline
+	}
 
-						  // keep count of clients connected to publisher. A publisher is allowed to
-						  // Stop only if all clients have been disconnected
-	numClients           uint32
+	// keep count of clients connected to publisher. A publisher is allowed to
+	// Stop only if all clients have been disconnected
+	numClients uint32
 }
 
 type ShipperConfig struct {
 	common.EventMetadata `config:",inline"` // Fields and tags to add to each event.
-	Name                 string
-	RefreshTopologyFreq  time.Duration `config:"refresh_topology_freq"`
-	Ignore_outgoing      bool          `config:"ignore_outgoing"`
-	Topology_expire      int           `config:"topology_expire"`
-	Geoip                common.Geoip  `config:"geoip"`
+	Name                 string             `config:"name"`
+	RefreshTopologyFreq  time.Duration      `config:"refresh_topology_freq"`
+	Ignore_outgoing      bool               `config:"ignore_outgoing"`
+	Topology_expire      int                `config:"topology_expire"`
+	Geoip                common.Geoip       `config:"geoip"`
 
 	// internal publisher queue sizes
 	QueueSize     *int `config:"queue_size"`
@@ -172,7 +172,7 @@ func (publisher *Publisher) PublishTopology(params ...string) error {
 	return nil
 }
 
-func (publisher *Publisher) RegisterFilter(filters *filter.FilterList) error {
+func (publisher *Publisher) RegisterFilter(filters *filter.Filters) error {
 
 	publisher.Filters = filters
 	return nil

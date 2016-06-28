@@ -22,11 +22,11 @@ type PacketbeatPublisher struct {
 	pub    *publisher.Publisher
 	client publisher.Client
 
-	wg     sync.WaitGroup
-	done   chan struct{}
+	wg   sync.WaitGroup
+	done chan struct{}
 
-	trans  chan common.MapStr
-	flows  chan []common.MapStr
+	trans chan common.MapStr
+	flows chan []common.MapStr
 }
 
 type ChanTransactions struct {

@@ -36,7 +36,7 @@ var (
 func newOutputWorker(
 	cfg *common.Config,
 	out outputs.Outputer,
-ws *workerSignal,
+	ws *workerSignal,
 	hwm int,
 	bulkHWM int,
 ) *outputWorker {

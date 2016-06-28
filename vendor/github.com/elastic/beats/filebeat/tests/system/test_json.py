@@ -157,7 +157,8 @@ class Test(BaseTest):
             json=dict(
                 keys_under_root=True),
             multiline=True,
-            pattern="^["
+            match="after",
+            pattern="^\\["
         )
 
         proc = self.start_beat()
@@ -178,7 +179,7 @@ class Test(BaseTest):
                 message_key="msg",
                 keys_under_root=True,
                 overwrite_keys=True
-            ),
+                ),
         )
         os.mkdir(self.working_dir + "/log/")
         self.copy_files(["logs/json_timestamp.log"],
@@ -187,22 +188,28 @@ class Test(BaseTest):
 
         proc = self.start_beat()
         self.wait_until(
-            lambda: self.output_has(lines=3),
+            lambda: self.output_has(lines=5),
             max_timeout=10)
         proc.check_kill_and_wait()
 
         output = self.read_output()
-        assert len(output) == 3
+        assert len(output) == 5
         assert all(isinstance(o["@timestamp"], basestring) for o in output)
         assert all(isinstance(o["type"], basestring) for o in output)
         assert output[0]["@timestamp"] == "2016-04-05T18:47:18.444Z"
 
         assert output[1]["@timestamp"] != "invalid"
         assert output[1]["json_error"] == \
-               "@timestamp not overwritten (parse error on invalid)"
+            "@timestamp not overwritten (parse error on invalid)"
 
         assert output[2]["json_error"] == \
-               "@timestamp not overwritten (not string)"
+            "@timestamp not overwritten (not string)"
+
+        assert "json_error" not in output[3]
+        assert output[3]["@timestamp"] == "2016-04-05T18:47:18.444Z", output[3]["@timestamp"]
+
+        assert "json_error" not in output[4]
+        assert output[4]["@timestamp"] == "2016-04-05T18:47:18.000Z", output[4]["@timestamp"]
 
     def test_type_in_message(self):
         """
@@ -215,7 +222,7 @@ class Test(BaseTest):
                 message_key="msg",
                 keys_under_root=True,
                 overwrite_keys=True
-            ),
+                ),
         )
         os.mkdir(self.working_dir + "/log/")
         self.copy_files(["logs/json_type.log"],
@@ -236,8 +243,90 @@ class Test(BaseTest):
 
         assert output[1]["type"] == "log"
         assert output[1]["json_error"] == \
-               "type not overwritten (not string)"
+            "type not overwritten (not string)"
 
         assert output[2]["type"] == "log"
         assert output[2]["json_error"] == \
-               "type not overwritten (not string)"
+            "type not overwritten (not string)"
+
+    def test_with_generic_filtering(self):
+        """
+        It should work fine to combine JSON decoding with
+        removing fields via generic filtering. The test log file
+        in here also contains a null value.
+        """
+        self.render_config_template(
+            path=os.path.abspath(self.working_dir) + "/log/*",
+            json=dict(
+                message_key="message",
+                keys_under_root=True,
+                overwrite_keys=True,
+                add_error_key=True,
+                ),
+            drop_fields={
+                "fields": ["headers.request-id"],
+            },
+        )
+
+        os.mkdir(self.working_dir + "/log/")
+        self.copy_files(["logs/json_null.log"],
+                        source_dir="../files",
+                        target_dir="log")
+
+        proc = self.start_beat()
+        self.wait_until(
+            lambda: self.output_has(lines=1),
+            max_timeout=10)
+        proc.check_kill_and_wait()
+
+        output = self.read_output(
+            required_fields=["@timestamp", "type"],
+        )
+        assert len(output) == 1
+        o = output[0]
+
+        assert "headers.content-type" in o
+        assert "headers.request-id" not in o
+        assert o["res"] is None
+
+    def test_with_generic_filtering_remove_headers(self):
+        """
+        It should work fine to combine JSON decoding with
+        removing fields via generic filtering. The test log file
+        in here also contains a null value.
+        """
+        self.render_config_template(
+            path=os.path.abspath(self.working_dir) + "/log/*",
+            json=dict(
+                message_key="message",
+                keys_under_root=True,
+                overwrite_keys=True,
+                add_error_key=True,
+                ),
+            drop_fields={
+                "fields": ["headers", "res"],
+            },
+        )
+
+        os.mkdir(self.working_dir + "/log/")
+        self.copy_files(["logs/json_null.log"],
+                        source_dir="../files",
+                        target_dir="log")
+
+        proc = self.start_beat()
+        self.wait_until(
+            lambda: self.output_has(lines=1),
+            max_timeout=10)
+        proc.check_kill_and_wait()
+
+        output = self.read_output(
+            required_fields=["@timestamp", "type"],
+        )
+        assert len(output) == 1
+        o = output[0]
+
+        assert "headers.content-type" not in o
+        assert "headers.request-id" not in o
+        assert "res" not in o
+        assert o["method"] == "GET"
+        assert o["message"] == "Sent response: "

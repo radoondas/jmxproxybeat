@@ -397,7 +397,7 @@ func TestPublishTransaction_edns(t *testing.T) {
 func TestPublishTransaction_respEdnsNoSupport(t *testing.T) {
 	dns := newDns(testing.Verbose())
 	q := ednsSecA
-	q.response = q.response[:len(q.response) - 11] // Remove OPT RR
+	q.response = q.response[:len(q.response)-11] // Remove OPT RR
 
 	packet := newPacket(forward, q.request)
 	dns.ParseUdp(packet)
@@ -420,7 +420,7 @@ func TestPublishTransaction_respEdnsNoSupport(t *testing.T) {
 func TestPublishTransaction_respEdnsUnexpected(t *testing.T) {
 	dns := newDns(testing.Verbose())
 	q := ednsSecA
-	q.request = q.request[:len(q.request) - 11] // Remove OPT RR
+	q.request = q.request[:len(q.request)-11] // Remove OPT RR
 
 	packet := newPacket(forward, q.request)
 	dns.ParseUdp(packet)

@@ -31,7 +31,7 @@ var (
 	homePath   = flag.String("path.home", "", "Home path")
 	configPath = flag.String("path.config", "", "Configuration path")
 	dataPath   = flag.String("path.data", "", "Data path")
-	logsPath = flag.String("path.logs", "", "Logs path")
+	logsPath   = flag.String("path.logs", "", "Logs path")
 )
 
 type Path struct {
@@ -49,7 +49,7 @@ const (
 	Home   FileType = "home"
 	Config FileType = "config"
 	Data   FileType = "data"
-	Logs FileType = "logs"
+	Logs   FileType = "logs"
 )
 
 // Paths is the Path singleton on which the top level functions from this
