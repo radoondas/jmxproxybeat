@@ -6,6 +6,8 @@ import (
 
 	"golang.org/x/text/transform"
 
+	"io"
+
 	"github.com/elastic/beats/filebeat/config"
 	"github.com/elastic/beats/filebeat/harvester/encoding"
 	"github.com/elastic/beats/filebeat/harvester/processor"
@@ -37,8 +39,10 @@ func (h *Harvester) Harvest() {
 	//       don't require 'complicated' logic.
 	cfg := h.Config
 	readerConfig := reader.LogFileReaderConfig{
-		ForceClose:         cfg.ForceCloseFiles,
+		CloseRemoved:       cfg.CloseRemoved,
+		CloseRenamed:       cfg.CloseRenamed,
 		CloseOlder:         cfg.CloseOlder,
+		CloseEOF:           cfg.CloseEOF,
 		BackoffDuration:    cfg.Backoff,
 		MaxBackoffDuration: cfg.MaxBackoff,
 		BackoffFactor:      cfg.BackoffFactor,
@@ -68,13 +72,19 @@ func (h *Harvester) Harvest() {
 		// Partial lines return error and are only read on completion
 		ts, text, bytesRead, jsonFields, err := readLine(processor)
 		if err != nil {
-			if err == reader.ErrFileTruncate {
+			switch err {
+			case reader.ErrFileTruncate:
 				logp.Info("File was truncated. Begin reading file from offset 0: %s", h.Path)
 				h.SetOffset(0)
-				return
+			case reader.ErrRemoved:
+				logp.Info("File was removed: %s. Closing because close_removed is enabled.", h.Path)
+			case reader.ErrRenamed:
+				logp.Info("File was renamed: %s. Closing because close_renamed is enabled.", h.Path)
+			case io.EOF:
+				logp.Info("End of file reached: %s. Closing because close_eof is enabled.", h.Path)
+			default:
+				logp.Info("Read line error: %s", err)
 			}
-
-			logp.Info("Read line error: %s", err)
 			return
 		}
 
