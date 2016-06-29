@@ -12,6 +12,14 @@ JMX metrics are requested via 'JMX Proxy Servlet' configured and enabled in Tomc
 
 Because Jmxproxybeat is not using JAVA, it is lightweight on the system and there is no need for JAVA to get JMX metrics.
 
+## Tomcat Versions
+Supported Tomcat versions:
+
+| Tomcat version |
+| -------------- |
+| Tomcat 7       |
+| Tomcat 8       |
+
 ## Tomcat configuration
 General reading about Tomcat [JMX Proxy servlet](https://tomcat.apache.org/tomcat-8.0-doc/manager-howto.html#Using_the_JMX_Proxy_Servlet). 
 
