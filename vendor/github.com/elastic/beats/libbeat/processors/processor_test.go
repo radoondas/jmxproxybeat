@@ -1,36 +1,36 @@
-package filter_test
+package processors_test
 
 import (
 	"testing"
 
 	"github.com/elastic/beats/libbeat/common"
-	"github.com/elastic/beats/libbeat/filter"
-	_ "github.com/elastic/beats/libbeat/filter/rules"
 	"github.com/elastic/beats/libbeat/logp"
+	"github.com/elastic/beats/libbeat/processors"
+	_ "github.com/elastic/beats/libbeat/processors/actions"
 	"github.com/stretchr/testify/assert"
 )
 
-func GetFilters(t *testing.T, yml []map[string]interface{}) *filter.Filters {
+func GetProcessors(t *testing.T, yml []map[string]interface{}) *processors.Processors {
 
-	config := filter.FilterPluginConfig{}
+	config := processors.PluginConfig{}
 
-	for _, rule := range yml {
+	for _, action := range yml {
 		c := map[string]common.Config{}
 
-		for name, ruleYml := range rule {
-			ruleConfig, err := common.NewConfigFrom(ruleYml)
+		for name, actionYml := range action {
+			actionConfig, err := common.NewConfigFrom(actionYml)
 			assert.Nil(t, err)
 
-			c[name] = *ruleConfig
+			c[name] = *actionConfig
 		}
 		config = append(config, c)
 
 	}
 
-	filters, err := filter.New(config)
+	list, err := processors.New(config)
 	assert.Nil(t, err)
 
-	return filters
+	return list
 
 }
 
@@ -43,8 +43,10 @@ func TestBadConfig(t *testing.T) {
 	yml := []map[string]interface{}{
 		map[string]interface{}{
 			"include_fields": map[string]interface{}{
-				"contains": map[string]string{
-					"proc.name": "test",
+				"when": map[string]interface{}{
+					"contains": map[string]string{
+						"proc.name": "test",
+					},
 				},
 				"fields": []string{"proc.cpu.total_p", "proc.mem", "dd"},
 			},
@@ -54,21 +56,21 @@ func TestBadConfig(t *testing.T) {
 		},
 	}
 
-	config := filter.FilterPluginConfig{}
+	config := processors.PluginConfig{}
 
-	for _, rule := range yml {
+	for _, action := range yml {
 		c := map[string]common.Config{}
 
-		for name, ruleYml := range rule {
-			ruleConfig, err := common.NewConfigFrom(ruleYml)
+		for name, actionYml := range action {
+			actionConfig, err := common.NewConfigFrom(actionYml)
 			assert.Nil(t, err)
 
-			c[name] = *ruleConfig
+			c[name] = *actionConfig
 		}
 		config = append(config, c)
 	}
 
-	_, err := filter.New(config)
+	_, err := processors.New(config)
 	assert.NotNil(t, err)
 
 }
@@ -82,15 +84,17 @@ func TestIncludeFields(t *testing.T) {
 	yml := []map[string]interface{}{
 		map[string]interface{}{
 			"include_fields": map[string]interface{}{
-				"contains": map[string]string{
-					"proc.name": "test",
+				"when": map[string]interface{}{
+					"contains": map[string]string{
+						"proc.name": "test",
+					},
 				},
 				"fields": []string{"proc.cpu.total_p", "proc.mem", "dd"},
 			},
 		},
 	}
 
-	filters := GetFilters(t, yml)
+	processors := GetProcessors(t, yml)
 
 	event := common.MapStr{
 		"@timestamp": "2016-01-24T18:35:19.308Z",
@@ -118,7 +122,7 @@ func TestIncludeFields(t *testing.T) {
 		"type": "process",
 	}
 
-	filteredEvent := filters.Filter(event)
+	processedEvent := processors.Run(event)
 
 	expectedEvent := common.MapStr{
 		"@timestamp": "2016-01-24T18:35:19.308Z",
@@ -136,7 +140,7 @@ func TestIncludeFields(t *testing.T) {
 		"type": "process",
 	}
 
-	assert.Equal(t, expectedEvent, filteredEvent)
+	assert.Equal(t, expectedEvent, processedEvent)
 }
 
 func TestIncludeFields1(t *testing.T) {
@@ -148,15 +152,17 @@ func TestIncludeFields1(t *testing.T) {
 	yml := []map[string]interface{}{
 		map[string]interface{}{
 			"include_fields": map[string]interface{}{
-				"regexp": map[string]string{
-					"proc.cmdline": "launchd",
+				"when": map[string]interface{}{
+					"regexp": map[string]string{
+						"proc.cmdline": "launchd",
+					},
 				},
 				"fields": []string{"proc.cpu.total_add"},
 			},
 		},
 	}
 
-	filters := GetFilters(t, yml)
+	processors := GetProcessors(t, yml)
 
 	event := common.MapStr{
 		"@timestamp": "2016-01-24T18:35:19.308Z",
@@ -184,14 +190,14 @@ func TestIncludeFields1(t *testing.T) {
 		"type": "process",
 	}
 
-	filteredEvent := filters.Filter(event)
+	processedEvent := processors.Run(event)
 
 	expectedEvent := common.MapStr{
 		"@timestamp": "2016-01-24T18:35:19.308Z",
 		"type":       "process",
 	}
 
-	assert.Equal(t, expectedEvent, filteredEvent)
+	assert.Equal(t, expectedEvent, processedEvent)
 }
 
 func TestDropFields(t *testing.T) {
@@ -199,15 +205,17 @@ func TestDropFields(t *testing.T) {
 	yml := []map[string]interface{}{
 		map[string]interface{}{
 			"drop_fields": map[string]interface{}{
-				"equals": map[string]string{
-					"beat.hostname": "mar",
+				"when": map[string]interface{}{
+					"equals": map[string]string{
+						"beat.hostname": "mar",
+					},
 				},
 				"fields": []string{"proc.cpu.start_time", "mem", "proc.cmdline", "beat", "dd"},
 			},
 		},
 	}
 
-	filters := GetFilters(t, yml)
+	processors := GetProcessors(t, yml)
 
 	event := common.MapStr{
 		"@timestamp": "2016-01-24T18:35:19.308Z",
@@ -235,7 +243,7 @@ func TestDropFields(t *testing.T) {
 		"type": "process",
 	}
 
-	filteredEvent := filters.Filter(event)
+	processedEvent := processors.Run(event)
 
 	expectedEvent := common.MapStr{
 		"@timestamp": "2016-01-24T18:35:19.308Z",
@@ -250,7 +258,7 @@ func TestDropFields(t *testing.T) {
 		"type": "process",
 	}
 
-	assert.Equal(t, expectedEvent, filteredEvent)
+	assert.Equal(t, expectedEvent, processedEvent)
 }
 
 func TestMultipleIncludeFields(t *testing.T) {
@@ -262,8 +270,10 @@ func TestMultipleIncludeFields(t *testing.T) {
 	yml := []map[string]interface{}{
 		map[string]interface{}{
 			"include_fields": map[string]interface{}{
-				"contains": map[string]string{
-					"beat.name": "my-shipper",
+				"when": map[string]interface{}{
+					"contains": map[string]string{
+						"beat.name": "my-shipper",
+					},
 				},
 				"fields": []string{"proc"},
 			},
@@ -275,7 +285,7 @@ func TestMultipleIncludeFields(t *testing.T) {
 		},
 	}
 
-	filters := GetFilters(t, yml)
+	processors := GetProcessors(t, yml)
 
 	event1 := common.MapStr{
 		"@timestamp": "2016-01-24T18:35:19.308Z",
@@ -341,8 +351,8 @@ func TestMultipleIncludeFields(t *testing.T) {
 		"type":       "process",
 	}
 
-	actual1 := filters.Filter(event1)
-	actual2 := filters.Filter(event2)
+	actual1 := processors.Run(event1)
+	actual2 := processors.Run(event2)
 
 	assert.Equal(t, expected1, actual1)
 	assert.Equal(t, expected2, actual2)
@@ -357,16 +367,18 @@ func TestDropEvent(t *testing.T) {
 	yml := []map[string]interface{}{
 		map[string]interface{}{
 			"drop_event": map[string]interface{}{
-				"range": map[string]interface{}{
-					"proc.cpu.total_p": map[string]float64{
-						"lt": 0.5,
+				"when": map[string]interface{}{
+					"range": map[string]interface{}{
+						"proc.cpu.total_p": map[string]float64{
+							"lt": 0.5,
+						},
 					},
 				},
 			},
 		},
 	}
 
-	filters := GetFilters(t, yml)
+	processors := GetProcessors(t, yml)
 
 	event := common.MapStr{
 		"@timestamp": "2016-01-24T18:35:19.308Z",
@@ -394,9 +406,9 @@ func TestDropEvent(t *testing.T) {
 		"type": "process",
 	}
 
-	filteredEvent := filters.Filter(event)
+	processedEvent := processors.Run(event)
 
-	assert.Nil(t, filteredEvent)
+	assert.Nil(t, processedEvent)
 }
 
 func TestEmptyCondition(t *testing.T) {
@@ -411,7 +423,7 @@ func TestEmptyCondition(t *testing.T) {
 		},
 	}
 
-	filters := GetFilters(t, yml)
+	processors := GetProcessors(t, yml)
 
 	event := common.MapStr{
 		"@timestamp": "2016-01-24T18:35:19.308Z",
@@ -439,9 +451,9 @@ func TestEmptyCondition(t *testing.T) {
 		"type": "process",
 	}
 
-	filteredEvent := filters.Filter(event)
+	processedEvent := processors.Run(event)
 
-	assert.Nil(t, filteredEvent)
+	assert.Nil(t, processedEvent)
 }
 
 func TestBadCondition(t *testing.T) {
@@ -453,28 +465,30 @@ func TestBadCondition(t *testing.T) {
 	yml := []map[string]interface{}{
 		map[string]interface{}{
 			"drop_event": map[string]interface{}{
-				"equal": map[string]string{
-					"type": "process",
+				"when": map[string]interface{}{
+					"equal": map[string]string{
+						"type": "process",
+					},
 				},
 			},
 		},
 	}
 
-	config := filter.FilterPluginConfig{}
+	config := processors.PluginConfig{}
 
-	for _, rule := range yml {
+	for _, action := range yml {
 		c := map[string]common.Config{}
 
-		for name, ruleYml := range rule {
-			ruleConfig, err := common.NewConfigFrom(ruleYml)
+		for name, actionYml := range action {
+			actionConfig, err := common.NewConfigFrom(actionYml)
 			assert.Nil(t, err)
 
-			c[name] = *ruleConfig
+			c[name] = *actionConfig
 		}
 		config = append(config, c)
 	}
 
-	_, err := filter.New(config)
+	_, err := processors.New(config)
 	assert.NotNil(t, err)
 
 }
@@ -488,28 +502,68 @@ func TestMissingFields(t *testing.T) {
 	yml := []map[string]interface{}{
 		map[string]interface{}{
 			"include_fields": map[string]interface{}{
-				"equals": map[string]string{
-					"type": "process",
+				"when": map[string]interface{}{
+					"equals": map[string]string{
+						"type": "process",
+					},
 				},
 			},
 		},
 	}
 
-	config := filter.FilterPluginConfig{}
+	config := processors.PluginConfig{}
 
-	for _, rule := range yml {
+	for _, action := range yml {
 		c := map[string]common.Config{}
 
-		for name, ruleYml := range rule {
-			ruleConfig, err := common.NewConfigFrom(ruleYml)
+		for name, actionYml := range action {
+			actionConfig, err := common.NewConfigFrom(actionYml)
 			assert.Nil(t, err)
 
-			c[name] = *ruleConfig
+			c[name] = *actionConfig
 		}
 		config = append(config, c)
 	}
 
-	_, err := filter.New(config)
+	_, err := processors.New(config)
+	assert.NotNil(t, err)
+
+}
+
+func TestBadConditionConfig(t *testing.T) {
+
+	if testing.Verbose() {
+		logp.LogInit(logp.LOG_DEBUG, "", false, true, []string{"*"})
+	}
+
+	yml := []map[string]interface{}{
+		map[string]interface{}{
+			"include_fields": map[string]interface{}{
+				"when": map[string]interface{}{
+					"fake": map[string]string{
+						"type": "process",
+					},
+				},
+				"fields": []string{"proc.cpu.start_time", "proc.cpu.total_p", "proc.mem.rss_p", "proc.cmdline"},
+			},
+		},
+	}
+
+	config := processors.PluginConfig{}
+
+	for _, action := range yml {
+		c := map[string]common.Config{}
+
+		for name, actionYml := range action {
+			actionConfig, err := common.NewConfigFrom(actionYml)
+			assert.Nil(t, err)
+
+			c[name] = *actionConfig
+		}
+		config = append(config, c)
+	}
+
+	_, err := processors.New(config)
 	assert.NotNil(t, err)
 
 }

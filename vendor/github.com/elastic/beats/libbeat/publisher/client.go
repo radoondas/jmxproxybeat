@@ -12,7 +12,7 @@ import (
 
 // Metrics that can retrieved through the expvar web interface.
 var (
-	publishedEvents = expvar.NewInt("libbeatPublishedEvents")
+	publishedEvents = expvar.NewInt("libbeat.publisher.published_events")
 )
 
 var (
@@ -165,8 +165,8 @@ func (c *client) filterEvent(event common.MapStr) *common.MapStr {
 
 	}
 
-	// filter the event by applying the configured rules
-	publishEvent := c.publisher.Filters.Filter(event)
+	// process the event by applying the configured actions
+	publishEvent := c.publisher.Processors.Run(event)
 	if publishEvent == nil {
 		// the event is dropped
 		logp.Debug("publish", "Drop event %s", event.StringToPrint())

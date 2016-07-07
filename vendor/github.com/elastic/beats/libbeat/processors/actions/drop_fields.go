@@ -1,31 +1,31 @@
-package rules
+package actions
 
 import (
 	"fmt"
 	"strings"
 
 	"github.com/elastic/beats/libbeat/common"
-	"github.com/elastic/beats/libbeat/filter"
+	"github.com/elastic/beats/libbeat/processors"
 )
 
 type DropFields struct {
 	Fields []string
 	// condition
-	Cond *filter.Condition
+	Cond *processors.Condition
 }
 
 type DropFieldsConfig struct {
-	Fields                 []string `config:"fields"`
-	filter.ConditionConfig `config:",inline"`
+	Fields []string                    `config:"fields"`
+	Cond   *processors.ConditionConfig `config:"when"`
 }
 
 func init() {
-	if err := filter.RegisterPlugin("drop_fields", newDropFields); err != nil {
+	if err := processors.RegisterPlugin("drop_fields", newDropFields); err != nil {
 		panic(err)
 	}
 }
 
-func newDropFields(c common.Config) (filter.FilterRule, error) {
+func newDropFields(c common.Config) (processors.Processor, error) {
 
 	f := DropFields{}
 
@@ -41,7 +41,7 @@ func newDropFields(c common.Config) (filter.FilterRule, error) {
 	}
 
 	/* remove read only fields */
-	for _, readOnly := range filter.MandatoryExportedFields {
+	for _, readOnly := range processors.MandatoryExportedFields {
 		for i, field := range config.Fields {
 			if readOnly == field {
 				config.Fields = append(config.Fields[:i], config.Fields[i+1:]...)
@@ -50,7 +50,7 @@ func newDropFields(c common.Config) (filter.FilterRule, error) {
 	}
 	f.Fields = config.Fields
 
-	cond, err := filter.NewCondition(config.ConditionConfig)
+	cond, err := processors.NewCondition(config.Cond)
 	if err != nil {
 		return nil, err
 	}
@@ -64,10 +64,8 @@ func (f *DropFields) CheckConfig(c common.Config) error {
 	complete := false
 
 	for _, field := range c.GetFields() {
-		if !filter.AvailableCondition(field) {
-			if field != "fields" {
-				return fmt.Errorf("unexpected %s option in the drop_fields configuration", field)
-			}
+		if field != "fields" && field != "when" {
+			return fmt.Errorf("unexpected %s option in the drop_fields configuration", field)
 		}
 		if field == "fields" {
 			complete = true
@@ -80,7 +78,7 @@ func (f *DropFields) CheckConfig(c common.Config) error {
 	return nil
 }
 
-func (f *DropFields) Filter(event common.MapStr) (common.MapStr, error) {
+func (f *DropFields) Run(event common.MapStr) (common.MapStr, error) {
 
 	if f.Cond != nil && !f.Cond.Check(event) {
 		return event, nil

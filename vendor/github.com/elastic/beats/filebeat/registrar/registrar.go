@@ -2,6 +2,7 @@ package registrar
 
 import (
 	"encoding/json"
+	"expvar"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,6 +24,10 @@ type Registrar struct {
 	states       *file.States // Map with all file paths inside and the corresponding state
 	wg           sync.WaitGroup
 }
+
+var (
+	statesUpdated = expvar.NewInt("registrar.state_updates")
+)
 
 func New(registryFile string) (*Registrar, error) {
 
@@ -132,8 +137,8 @@ func (r *Registrar) loadAndConvertOldState(f *os.File) bool {
 	logp.Info("Old registry states found: %v", len(oldStates))
 	counter := 0
 	for _, state := range oldStates {
-		// Makes time last_seen time of migration, as this is the best guess
-		state.LastSeen = time.Now()
+		// Makes timestamp time of migration, as this is the best guess
+		state.Timestamp = time.Now()
 		states[counter] = state
 		counter++
 	}
@@ -180,8 +185,10 @@ func (r *Registrar) Run() {
 			r.processEventStates(events)
 		}
 
-		if e := r.writeRegistry(); e != nil {
-			logp.Err("Writing of registry returned error: %v. Continuing..", e)
+		r.states.Cleanup()
+		logp.Debug("registrar", "Registrar states cleaned up.")
+		if err := r.writeRegistry(); err != nil {
+			logp.Err("Writing of registry returned error: %v. Continuing...", err)
 		}
 	}
 }
@@ -219,6 +226,7 @@ func (r *Registrar) writeRegistry() error {
 		return err
 	}
 
+	// First clean up states
 	states := r.states.GetStates()
 
 	encoder := json.NewEncoder(f)
@@ -231,7 +239,8 @@ func (r *Registrar) writeRegistry() error {
 	// Directly close file because of windows
 	f.Close()
 
-	logp.Info("Registry file updated. %d states written.", len(states))
+	logp.Debug("registrar", "Registry file updated. %d states written.", len(states))
+	statesUpdated.Add(int64(len(states)))
 
 	return file.SafeFileRotate(r.registryFile, tempfile)
 }

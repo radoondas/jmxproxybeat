@@ -66,8 +66,8 @@ sudo rpm -vi metricbeat-{version}-x86_64.rpm
 
 ["source","sh",subs="attributes,callouts"]
 ------------------------------------------------
-curl -L -O https://download.elastic.co/beats/metricbeat/metricbeat-{version}-darwin-x64.tar.gz
-tar xzvf metricbeat-{version}-darwin-x64.tar.gz
+curl -L -O https://download.elastic.co/beats/metricbeat/metricbeat-{version}-darwin-x86_64.tar.gz
+tar xzvf metricbeat-{version}-darwin-x86_64.tar.gz
 ------------------------------------------------
 
 [[win]]
@@ -137,10 +137,10 @@ The following example shows how to configure the Apache HTTPD module:
 -------------------------------------
 metricbeat.modules:
 - module: apache
+  metricsets: ["status"]
   enabled: true
-  metricsets: ['status']
-  hosts: ['http://127.0.0.1/']
   period: 1s
+  hosts: ["http://127.0.0.1"]
 -------------------------------------
 
 To configure Metricbeat:

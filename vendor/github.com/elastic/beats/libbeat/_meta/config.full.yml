@@ -45,20 +45,21 @@
 # default is the number of logical CPUs available in the system.
 #max_procs:
 
-#================================ Filters =====================================
+#================================ Processors =====================================
 
-# This section defines a list of filtering rules that are applied one by one
-# starting with the exported event:
+# Processors are used to reduce the number of fields in the exported event or to 
+# enhance the event with external meta data. This section defines a list of processors 
+# that are applied one by one and the first one receives the initial event:
 #
 #   event -> filter1 -> event1 -> filter2 ->event2 ...
 #
-# Supported actions: drop_fields, drop_event, include_fields
+# Supported processors: drop_fields, drop_event, include_fields
 #
-# For example, the following filter configuration uses multiple actions to keep
+# For example, you can use the following processors to keep
 # the fields that contain CPU load percentages, but remove the fields that
 # contain CPU ticks values:
 #
-#filters:
+#processors:
 #- include_fields:
 #    fields: ["cpu"]
 #- drop_fields:
@@ -66,10 +67,11 @@
 #
 # The following example drops the events that have the HTTP response code 200:
 #
-#filters:
+#processors:
 #- drop_event:
-#    equals:
-#       http.code: 200
+#    when:
+#       equals:
+#           http.code: 200
 #
 
 #================================ Outputs =====================================
@@ -470,12 +472,20 @@ output.elasticsearch:
 #logging.level: error
 
 # Enable debug output for selected components. To enable all selectors use ["*"]
-# Other available selectors are beat, publish, service
+# Other available selectors are "beat", "publish", "service"
 # Multiple selectors can be chained.
 #logging.selectors: [ ]
 
 # Send all logging output to syslog. The default is false.
 #logging.to_syslog: true
+
+# If enabled, beatname periodically logs its internal metrics that have changed
+# in the last period. For each metric that changed, the delta from the value at
+# the beginning of the period is logged. The default is true.
+#logging.metrics.enabled: true
+
+# The period after which to log the internal metrics. The default is 30s.
+#logging.metrics.period: 30s
 
 # Logging to rotating files files. Set logging.to_files to false to disable logging to
 # files.

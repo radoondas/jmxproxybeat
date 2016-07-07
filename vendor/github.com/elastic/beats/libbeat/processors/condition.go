@@ -1,4 +1,4 @@
-package filter
+package processors
 
 import (
 	"fmt"
@@ -30,19 +30,14 @@ type Condition struct {
 	rangexp  map[string]RangeValue
 }
 
-func AvailableCondition(name string) bool {
-
-	switch name {
-	case "equals", "contains", "range", "regexp":
-		return true
-	default:
-		return false
-	}
-}
-
-func NewCondition(config ConditionConfig) (*Condition, error) {
+func NewCondition(config *ConditionConfig) (*Condition, error) {
 
 	c := Condition{}
+
+	if config == nil {
+		// empty condition
+		return nil, nil
+	}
 
 	if config.Equals != nil {
 		if err := c.setEquals(config.Equals); err != nil {
@@ -61,14 +56,13 @@ func NewCondition(config ConditionConfig) (*Condition, error) {
 			return nil, err
 		}
 	} else {
-		// empty condition
-		return nil, nil
+		return nil, fmt.Errorf("missing condition")
 	}
 
 	return &c, nil
 }
 
-func (c *Condition) setEquals(cfg *ConditionFilter) error {
+func (c *Condition) setEquals(cfg *ConditionFields) error {
 
 	c.equals = map[string]EqualsValue{}
 
@@ -88,7 +82,7 @@ func (c *Condition) setEquals(cfg *ConditionFilter) error {
 	return nil
 }
 
-func (c *Condition) setContains(cfg *ConditionFilter) error {
+func (c *Condition) setContains(cfg *ConditionFields) error {
 
 	c.contains = map[string]string{}
 
@@ -104,7 +98,7 @@ func (c *Condition) setContains(cfg *ConditionFilter) error {
 	return nil
 }
 
-func (c *Condition) setRegexp(cfg *ConditionFilter) error {
+func (c *Condition) setRegexp(cfg *ConditionFields) error {
 
 	var err error
 
@@ -124,7 +118,7 @@ func (c *Condition) setRegexp(cfg *ConditionFilter) error {
 	return nil
 }
 
-func (c *Condition) setRange(cfg *ConditionFilter) error {
+func (c *Condition) setRange(cfg *ConditionFields) error {
 
 	c.rangexp = map[string]RangeValue{}
 

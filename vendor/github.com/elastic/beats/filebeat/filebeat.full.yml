@@ -83,9 +83,9 @@ filebeat.prospectors:
   # in. Default: log
   #document_type: log
 
-  # Scan frequency in seconds.
-  # How often these files should be checked for changes. In case it is set
-  # to 0s, it is done as often as possible. Default: 10s
+  # How often the prospector checks for new files in the paths that are specified
+  # for harvesting. Specify 1s to scan the directory as frequently as possible
+  # without causing Filebeat to scan too frequently. Default: 10s.
   #scan_frequency: 10s
 
   # Defines the buffer size every harvester uses when fetching the file
@@ -170,7 +170,7 @@ filebeat.prospectors:
   # Note: Potential data loss if renamed file is not picked up by prospector.
   #close_renamed: false
 
-  # When enabling this option, a file handler is closed immidiately in case a file can't be found
+  # When enabling this option, a file handler is closed immediately in case a file can't be found
   # any more. In case the file shows up again later, harvesting will continue at the last known position
   # after scan_frequency.
   # Note: Potential data loss if file reading was not finished when file was removed.
@@ -179,7 +179,17 @@ filebeat.prospectors:
   # Closes the file handler as soon as the harvesters reaches then end of the file.
   # The file will be picked up again by the harvester at previous known state
   # after scan_frequency in case the file can still be discovered by the prospector.
+  # Note: Potential data loss if file is deleted / moved before picked up again after
+  # scan_frequency by prospector
   #close_eof: false
+
+  # Files for the modification data is older then clean_older the state from the registry is removed
+  # By default this is disabled.
+  #clean_older: 0
+
+  # Removes the state for file which cannot be found on disk anymore immediately
+  #clean_removed: false
+
 
 #----------------------------- Stdin prospector -------------------------------
 # Configuration to use stdin input
@@ -253,20 +263,21 @@ filebeat.prospectors:
 # default is the number of logical CPUs available in the system.
 #max_procs:
 
-#================================ Filters =====================================
+#================================ Processors =====================================
 
-# This section defines a list of filtering rules that are applied one by one
-# starting with the exported event:
+# Processors are used to reduce the number of fields in the exported event or to 
+# enhance the event with external meta data. This section defines a list of processors 
+# that are applied one by one and the first one receives the initial event:
 #
 #   event -> filter1 -> event1 -> filter2 ->event2 ...
 #
-# Supported actions: drop_fields, drop_event, include_fields
+# Supported processors: drop_fields, drop_event, include_fields
 #
-# For example, the following filter configuration uses multiple actions to keep
+# For example, you can use the following processors to keep
 # the fields that contain CPU load percentages, but remove the fields that
 # contain CPU ticks values:
 #
-#filters:
+#processors:
 #- include_fields:
 #    fields: ["cpu"]
 #- drop_fields:
@@ -274,10 +285,11 @@ filebeat.prospectors:
 #
 # The following example drops the events that have the HTTP response code 200:
 #
-#filters:
+#processors:
 #- drop_event:
-#    equals:
-#       http.code: 200
+#    when:
+#       equals:
+#           http.code: 200
 #
 
 #================================ Outputs =====================================
@@ -678,12 +690,20 @@ output.elasticsearch:
 #logging.level: error
 
 # Enable debug output for selected components. To enable all selectors use ["*"]
-# Other available selectors are beat, publish, service
+# Other available selectors are "beat", "publish", "service"
 # Multiple selectors can be chained.
 #logging.selectors: [ ]
 
 # Send all logging output to syslog. The default is false.
 #logging.to_syslog: true
+
+# If enabled, filebeat periodically logs its internal metrics that have changed
+# in the last period. For each metric that changed, the delta from the value at
+# the beginning of the period is logged. The default is true.
+#logging.metrics.enabled: true
+
+# The period after which to log the internal metrics. The default is 30s.
+#logging.metrics.period: 30s
 
 # Logging to rotating files files. Set logging.to_files to false to disable logging to
 # files.
