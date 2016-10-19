@@ -481,7 +481,9 @@ func TestBadCondition(t *testing.T) {
 
 		for name, actionYml := range action {
 			actionConfig, err := common.NewConfigFrom(actionYml)
-			assert.Nil(t, err)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			c[name] = *actionConfig
 		}
@@ -489,7 +491,7 @@ func TestBadCondition(t *testing.T) {
 	}
 
 	_, err := processors.New(config)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 
 }
 
@@ -566,4 +568,55 @@ func TestBadConditionConfig(t *testing.T) {
 	_, err := processors.New(config)
 	assert.NotNil(t, err)
 
+}
+
+func TestDropMissingFields(t *testing.T) {
+
+	yml := []map[string]interface{}{
+		map[string]interface{}{
+			"drop_fields": map[string]interface{}{
+				"fields": []string{"foo.bar", "proc.cpu", "proc.sss", "beat", "mem"},
+			},
+		},
+	}
+
+	processors := GetProcessors(t, yml)
+
+	event := common.MapStr{
+		"@timestamp": "2016-01-24T18:35:19.308Z",
+		"beat": common.MapStr{
+			"hostname": "mar",
+			"name":     "my-shipper-1",
+		},
+
+		"proc": common.MapStr{
+			"cpu": common.MapStr{
+				"start_time": "Jan14",
+				"system":     26027,
+				"total":      79390,
+				"total_p":    0,
+				"user":       53363,
+			},
+			"cmdline": "/sbin/launchd",
+		},
+		"mem": common.MapStr{
+			"rss":   11194368,
+			"rss_p": 0,
+			"share": 0,
+			"size":  2555572224,
+		},
+		"type": "process",
+	}
+
+	processedEvent := processors.Run(event)
+
+	expectedEvent := common.MapStr{
+		"@timestamp": "2016-01-24T18:35:19.308Z",
+		"proc": common.MapStr{
+			"cmdline": "/sbin/launchd",
+		},
+		"type": "process",
+	}
+
+	assert.Equal(t, expectedEvent, processedEvent)
 }

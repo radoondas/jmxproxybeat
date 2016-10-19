@@ -37,7 +37,7 @@ type Worker interface {
 	OnPacket(data []byte, ci *gopacket.CaptureInfo)
 }
 
-type WorkerFactory func(layers.LinkType) (Worker, string, error)
+type WorkerFactory func(layers.LinkType) (Worker, error)
 
 // Computes the block_size and the num_blocks in such a way that the
 // allocated mmap buffer is close to but smaller than target_size_mb.
@@ -74,8 +74,9 @@ func deviceNameFromIndex(index int, devices []string) (string, error) {
 
 // ListDevicesNames returns the list of adapters available for sniffing on
 // this computer. If the withDescription parameter is set to true, a human
-// readable version of the adapter name is added.
-func ListDeviceNames(withDescription bool) ([]string, error) {
+// readable version of the adapter name is added. If the withIP parameter
+// is set to true, IP address of the adatper is added.
+func ListDeviceNames(withDescription bool, withIP bool) ([]string, error) {
 	devices, err := pcap.FindAllDevs()
 	if err != nil {
 		return []string{}, err
@@ -83,15 +84,34 @@ func ListDeviceNames(withDescription bool) ([]string, error) {
 
 	ret := []string{}
 	for _, dev := range devices {
+		r := dev.Name
+
 		if withDescription {
 			desc := "No description available"
 			if len(dev.Description) > 0 {
 				desc = dev.Description
 			}
-			ret = append(ret, fmt.Sprintf("%s (%s)", dev.Name, desc))
-		} else {
-			ret = append(ret, dev.Name)
+			r += fmt.Sprintf(" (%s)", desc)
 		}
+
+		if withIP {
+			ips := "Not assigned ip address"
+			if len(dev.Addresses) > 0 {
+				ips = ""
+
+				for i, address := range []pcap.InterfaceAddress(dev.Addresses) {
+					// Add a space between the IP address.
+					if i > 0 {
+						ips += " "
+					}
+
+					ips += fmt.Sprintf("%s", address.IP.String())
+				}
+			}
+			r += fmt.Sprintf(" (%s)", ips)
+
+		}
+		ret = append(ret, r)
 	}
 	return ret, nil
 }
@@ -113,7 +133,7 @@ func (sniffer *SnifferSetup) setFromConfig(config *config.InterfacesConfig) erro
 	}
 
 	if index, err := strconv.Atoi(sniffer.config.Device); err == nil { // Device is numeric
-		devices, err := ListDeviceNames(false)
+		devices, err := ListDeviceNames(false, false)
 		if err != nil {
 			return fmt.Errorf("Error getting devices list: %v", err)
 		}
@@ -241,21 +261,22 @@ func (sniffer *SnifferSetup) Datalink() layers.LinkType {
 	return layers.LinkTypeEthernet
 }
 
-func (sniffer *SnifferSetup) Init(test_mode bool, factory WorkerFactory, interfaces *config.InterfacesConfig) error {
+func (sniffer *SnifferSetup) Init(test_mode bool, filter string, factory WorkerFactory, interfaces *config.InterfacesConfig) error {
 	var err error
 
 	if !test_mode {
+		sniffer.filter = filter
+		logp.Debug("sniffer", "BPF filter: '%s'", sniffer.filter)
 		err = sniffer.setFromConfig(interfaces)
 		if err != nil {
 			return fmt.Errorf("Error creating sniffer: %v", err)
 		}
 	}
 
-	sniffer.worker, sniffer.filter, err = factory(sniffer.Datalink())
+	sniffer.worker, err = factory(sniffer.Datalink())
 	if err != nil {
 		return fmt.Errorf("Error creating decoder: %v", err)
 	}
-	logp.Debug("sniffer", "BPF filter: '%s'", sniffer.filter)
 
 	if sniffer.config.Dumpfile != "" {
 		p, err := pcap.OpenDead(sniffer.Datalink(), 65535)

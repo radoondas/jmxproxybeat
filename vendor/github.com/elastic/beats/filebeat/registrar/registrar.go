@@ -13,12 +13,14 @@ import (
 	cfg "github.com/elastic/beats/filebeat/config"
 	. "github.com/elastic/beats/filebeat/input"
 	"github.com/elastic/beats/filebeat/input/file"
+	"github.com/elastic/beats/filebeat/publisher"
 	"github.com/elastic/beats/libbeat/logp"
 	"github.com/elastic/beats/libbeat/paths"
 )
 
 type Registrar struct {
-	Channel      chan []*FileEvent
+	Channel      chan []*Event
+	out          publisher.SuccessLogger
 	done         chan struct{}
 	registryFile string       // Path to the Registry File
 	states       *file.States // Map with all file paths inside and the corresponding state
@@ -26,16 +28,20 @@ type Registrar struct {
 }
 
 var (
-	statesUpdated = expvar.NewInt("registrar.state_updates")
+	statesUpdate   = expvar.NewInt("registrar.states.update")
+	statesCleanup  = expvar.NewInt("registrar.states.cleanup")
+	statesCurrent  = expvar.NewInt("registar.states.current")
+	registryWrites = expvar.NewInt("registrar.writes")
 )
 
-func New(registryFile string) (*Registrar, error) {
+func New(registryFile string, out publisher.SuccessLogger) (*Registrar, error) {
 
 	r := &Registrar{
 		registryFile: registryFile,
 		done:         make(chan struct{}),
 		states:       file.NewStates(),
-		Channel:      make(chan []*FileEvent, 1),
+		Channel:      make(chan []*Event, 1),
+		out:          out,
 		wg:           sync.WaitGroup{},
 	}
 	err := r.Init()
@@ -177,24 +183,37 @@ func (r *Registrar) Run() {
 	}()
 
 	for {
+		var events []*Event
+
 		select {
 		case <-r.done:
 			logp.Info("Ending Registrar")
 			return
-		case events := <-r.Channel:
-			r.processEventStates(events)
+		case events = <-r.Channel:
 		}
 
-		r.states.Cleanup()
-		logp.Debug("registrar", "Registrar states cleaned up.")
+		r.processEventStates(events)
+
+		beforeCount := r.states.Count()
+		cleanedStates := r.states.Cleanup()
+		statesCleanup.Add(int64(cleanedStates))
+
+		logp.Debug("registrar",
+			"Registrar states cleaned up. Before: %d , After: %d",
+			beforeCount, beforeCount-cleanedStates)
+
 		if err := r.writeRegistry(); err != nil {
 			logp.Err("Writing of registry returned error: %v. Continuing...", err)
+		}
+
+		if r.out != nil {
+			r.out.Published(events)
 		}
 	}
 }
 
 // processEventStates gets the states from the events and writes them to the registrar state
-func (r *Registrar) processEventStates(events []*FileEvent) {
+func (r *Registrar) processEventStates(events []*Event) {
 	logp.Debug("registrar", "Processing %d events", len(events))
 
 	// Take the last event found for each file source
@@ -204,7 +223,8 @@ func (r *Registrar) processEventStates(events []*FileEvent) {
 		if event.InputType == cfg.StdinInputType {
 			continue
 		}
-		r.states.Update(event.FileState)
+		r.states.Update(event.State)
+		statesUpdate.Add(1)
 	}
 }
 
@@ -240,7 +260,8 @@ func (r *Registrar) writeRegistry() error {
 	f.Close()
 
 	logp.Debug("registrar", "Registry file updated. %d states written.", len(states))
-	statesUpdated.Add(int64(len(states)))
+	registryWrites.Add(1)
+	statesCurrent.Set(int64(len(states)))
 
 	return file.SafeFileRotate(r.registryFile, tempfile)
 }

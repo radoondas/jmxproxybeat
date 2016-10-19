@@ -123,6 +123,15 @@ func isUint(k reflect.Kind) bool {
 	}
 }
 
+func isFloat(k reflect.Kind) bool {
+	switch k {
+	case reflect.Float32, reflect.Float64:
+		return true
+	default:
+		return false
+	}
+}
+
 func implementsUnpacker(v reflect.Value) (reflect.Value, bool) {
 	for {
 		if v.Type().Implements(tUnpacker) {
@@ -149,6 +158,10 @@ func typeIsUnpacker(t reflect.Type) (reflect.Value, bool) {
 	return reflect.Value{}, false
 }
 
-func unpackWith(v reflect.Value, with interface{}) error {
-	return v.Interface().(Unpacker).Unpack(with)
+func unpackWith(ctx context, meta *Meta, v reflect.Value, with interface{}) Error {
+	err := v.Interface().(Unpacker).Unpack(with)
+	if err != nil {
+		return raisePathErr(err, meta, "", ctx.path("."))
+	}
+	return nil
 }

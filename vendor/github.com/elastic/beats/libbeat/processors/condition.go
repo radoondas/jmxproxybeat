@@ -28,6 +28,27 @@ type Condition struct {
 	contains map[string]string
 	regexp   map[string]*regexp.Regexp
 	rangexp  map[string]RangeValue
+	or       []Condition
+	and      []Condition
+	not      *Condition
+}
+
+type WhenProcessor struct {
+	condition *Condition
+	p         Processor
+}
+
+func NewConditional(
+	ruleFactory Constructor,
+) Constructor {
+	return func(cfg common.Config) (Processor, error) {
+		rule, err := ruleFactory(cfg)
+		if err != nil {
+			return nil, err
+		}
+
+		return addCondition(cfg, rule)
+	}
 }
 
 func NewCondition(config *ConditionConfig) (*Condition, error) {
@@ -55,10 +76,33 @@ func NewCondition(config *ConditionConfig) (*Condition, error) {
 		if err := c.setRange(config.Range); err != nil {
 			return nil, err
 		}
+	} else if len(config.OR) > 0 {
+		for _, cond_config := range config.OR {
+			cond, err := NewCondition(&cond_config)
+			if err != nil {
+				return nil, err
+			}
+			c.or = append(c.or, *cond)
+		}
+	} else if len(config.AND) > 0 {
+		for _, cond_config := range config.AND {
+			cond, err := NewCondition(&cond_config)
+			if err != nil {
+				return nil, err
+			}
+			c.and = append(c.and, *cond)
+		}
+	} else if config.NOT != nil {
+		cond, err := NewCondition(config.NOT)
+		if err != nil {
+			return nil, err
+		}
+		c.not = cond
 	} else {
 		return nil, fmt.Errorf("missing condition")
 	}
 
+	logp.Debug("processors", "New condition %s", c)
 	return &c, nil
 }
 
@@ -166,6 +210,18 @@ func (c *Condition) setRange(cfg *ConditionFields) error {
 
 func (c *Condition) Check(event common.MapStr) bool {
 
+	if len(c.or) > 0 {
+		return c.checkOR(event)
+	}
+
+	if len(c.and) > 0 {
+		return c.checkAND(event)
+	}
+
+	if c.not != nil {
+		return c.checkNOT(event)
+	}
+
 	if !c.checkEquals(event) {
 		return false
 	}
@@ -213,26 +269,32 @@ func (c *Condition) checkEquals(event common.MapStr) bool {
 }
 
 func (c *Condition) checkContains(event common.MapStr) bool {
-
+outer:
 	for field, equalValue := range c.contains {
-
 		value, err := event.GetValue(field)
 		if err != nil {
 			return false
 		}
 
-		sValue, err := extractString(value)
-		if err != nil {
-			logp.Warn("unexpected type %T in contains condition as it accepts only strings. ", value)
+		switch value.(type) {
+		case string:
+			if !strings.Contains(value.(string), equalValue) {
+				return false
+			}
+		case []string:
+			for _, s := range value.([]string) {
+				if strings.Contains(s, equalValue) {
+					continue outer
+				}
+			}
 			return false
-		}
-		if !strings.Contains(sValue, equalValue) {
+		default:
+			logp.Warn("unexpected type %T in contains condition as it accepts only strings.", value)
 			return false
 		}
 	}
 
 	return true
-
 }
 
 func (c *Condition) checkRegexp(event common.MapStr) bool {
@@ -307,7 +369,7 @@ func (c *Condition) checkRange(event common.MapStr) bool {
 				return false
 			}
 
-		case float64, float32:
+		case float64, float32, common.Float:
 			floatValue := reflect.ValueOf(value).Float()
 
 			if !checkValue(floatValue, rangeValue) {
@@ -315,10 +377,38 @@ func (c *Condition) checkRange(event common.MapStr) bool {
 			}
 
 		default:
-			logp.Warn("unexpected type %T in range condition as it accepts only strings. ", value)
+			logp.Warn("unexpected type %T in range condition. ", value)
 			return false
 		}
 
+	}
+	return true
+}
+
+func (c *Condition) checkOR(event common.MapStr) bool {
+
+	for _, cond := range c.or {
+		if cond.Check(event) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Condition) checkAND(event common.MapStr) bool {
+
+	for _, cond := range c.and {
+		if !cond.Check(event) {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *Condition) checkNOT(event common.MapStr) bool {
+
+	if c.not.Check(event) {
+		return false
 	}
 	return true
 }
@@ -339,6 +429,22 @@ func (c Condition) String() string {
 	if len(c.rangexp) > 0 {
 		s = s + fmt.Sprintf("range: %v", c.rangexp)
 	}
+	if len(c.or) > 0 {
+		for _, cond := range c.or {
+			s = s + cond.String() + " or "
+		}
+		s = s[:len(s)-len(" or ")] //delete the last or
+	}
+	if len(c.and) > 0 {
+		for _, cond := range c.and {
+			s = s + cond.String() + " and "
+		}
+		s = s[:len(s)-len(" and ")] //delete the last and
+	}
+	if c.not != nil {
+		s = s + "not " + c.not.String()
+	}
+
 	return s
 }
 
@@ -377,4 +483,51 @@ func (e EqualsValue) String() string {
 		return e.Str
 	}
 	return strconv.Itoa(int(e.Int))
+}
+
+func NewConditionRule(
+	config ConditionConfig,
+	p Processor,
+) (Processor, error) {
+	cond, err := NewCondition(&config)
+	if err != nil {
+		logp.Err("Failed to initialize lookup condition: %v", err)
+		return nil, err
+	}
+
+	if cond == nil {
+		return p, nil
+	}
+	return &WhenProcessor{cond, p}, nil
+}
+
+func (r *WhenProcessor) Run(event common.MapStr) (common.MapStr, error) {
+	if !r.condition.Check(event) {
+		return event, nil
+	}
+	return r.p.Run(event)
+}
+
+func (r *WhenProcessor) String() string {
+	return fmt.Sprintf("%v, condition=%v", r.p.String(), r.condition.String())
+}
+
+func addCondition(
+	cfg common.Config,
+	p Processor,
+) (Processor, error) {
+	if !cfg.HasField("when") {
+		return p, nil
+	}
+	sub, err := cfg.Child("when", -1)
+	if err != nil {
+		return nil, err
+	}
+
+	condConfig := ConditionConfig{}
+	if err := sub.Unpack(&condConfig); err != nil {
+		return nil, err
+	}
+
+	return NewConditionRule(condConfig, p)
 }

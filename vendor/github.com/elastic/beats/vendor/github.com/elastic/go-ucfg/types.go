@@ -195,6 +195,7 @@ func (c *cfgBool) typ(*options) (typeInfo, error)          { return typeInfo{"bo
 
 func (c *cfgInt) cpy(ctx context) value                   { return newInt(ctx, c.meta(), c.i) }
 func (c *cfgInt) toInt(*options) (int64, error)           { return c.i, nil }
+func (c *cfgInt) toFloat(*options) (float64, error)       { return float64(c.i), nil }
 func (c *cfgInt) reflect(*options) (reflect.Value, error) { return reflect.ValueOf(c.i), nil }
 func (c *cfgInt) reify(*options) (interface{}, error)     { return c.i, nil }
 func (c *cfgInt) toString(*options) (string, error)       { return fmt.Sprintf("%d", c.i), nil }
@@ -212,6 +213,7 @@ func (c *cfgUint) reify(*options) (interface{}, error)     { return c.u, nil }
 func (c *cfgUint) toString(*options) (string, error)       { return fmt.Sprintf("%d", c.u), nil }
 func (c *cfgUint) typ(*options) (typeInfo, error)          { return typeInfo{"uint", tUint64}, nil }
 func (c *cfgUint) toUint(*options) (uint64, error)         { return c.u, nil }
+func (c *cfgUint) toFloat(*options) (float64, error)       { return float64(c.u), nil }
 func (c *cfgUint) toInt(*options) (int64, error) {
 	if c.u > math.MaxInt64 {
 		return 0, ErrOverflow
@@ -243,15 +245,18 @@ func (c *cfgFloat) toInt(*options) (int64, error) {
 	return int64(c.f), nil
 }
 
-func (c *cfgString) cpy(ctx context) value             { return newString(ctx, c.meta(), c.s) }
-func (c *cfgString) toString(*options) (string, error) { return c.s, nil }
+func (c *cfgString) cpy(ctx context) value { return newString(ctx, c.meta(), c.s) }
 func (c *cfgString) reflect(*options) (reflect.Value, error) {
 	return reflect.ValueOf(c.s), nil
 }
 func (c *cfgString) reify(*options) (interface{}, error) { return c.s, nil }
 func (c *cfgString) typ(*options) (typeInfo, error)      { return typeInfo{"string", tString}, nil }
+func (c *cfgString) toBool(*options) (bool, error)       { return strconv.ParseBool(c.s) }
+func (c *cfgString) toString(*options) (string, error)   { return c.s, nil }
+func (c *cfgString) toInt(*options) (int64, error)       { return strconv.ParseInt(c.s, 0, 64) }
+func (c *cfgString) toUint(*options) (uint64, error)     { return strconv.ParseUint(c.s, 0, 64) }
+func (c *cfgString) toFloat(*options) (float64, error)   { return strconv.ParseFloat(c.s, 64) }
 
-func (cfgSub) Len(*options) (int, error)            { return 1, nil }
 func (c cfgSub) Context() context                   { return c.c.ctx }
 func (cfgSub) toBool(*options) (bool, error)        { return false, ErrTypeMismatch }
 func (cfgSub) toString(*options) (string, error)    { return "", ErrTypeMismatch }
@@ -259,6 +264,15 @@ func (cfgSub) toInt(*options) (int64, error)        { return 0, ErrTypeMismatch 
 func (cfgSub) toUint(*options) (uint64, error)      { return 0, ErrTypeMismatch }
 func (cfgSub) toFloat(*options) (float64, error)    { return 0, ErrTypeMismatch }
 func (c cfgSub) toConfig(*options) (*Config, error) { return c.c, nil }
+
+func (c cfgSub) Len(*options) (int, error) {
+	arr := c.c.fields.array()
+	if arr != nil {
+		return len(arr), nil
+	}
+
+	return 1, nil
+}
 
 func (c cfgSub) typ(*options) (typeInfo, error) {
 	return typeInfo{"object", reflect.PtrTo(tConfig)}, nil
@@ -274,18 +288,23 @@ func (c cfgSub) cpy(ctx context) value {
 		c: &Config{ctx: ctx, metadata: c.c.metadata},
 	}
 
-	fields := &fields{
-		fields: map[string]value{},
-		arr:    make([]value, len(c.c.fields.arr)),
+	dict := c.c.fields.dict()
+	arr := c.c.fields.array()
+	fields := &fields{}
+
+	for name, f := range dict {
+		ctx := f.Context()
+		v := f.cpy(context{field: ctx.field, parent: newC})
+		fields.set(name, v)
 	}
 
-	for name, f := range c.c.fields.fields {
-		ctx := f.Context()
-		fields.fields[name] = f.cpy(context{field: ctx.field, parent: newC})
-	}
-	for i, f := range c.c.fields.arr {
-		ctx := f.Context()
-		fields.arr[i] = f.cpy(context{field: ctx.field, parent: newC})
+	if arr != nil {
+		fields.a = make([]value, len(arr))
+		for i, f := range arr {
+			ctx := f.Context()
+			v := f.cpy(context{field: ctx.field, parent: newC})
+			fields.setAt(i, newC, v)
+		}
 	}
 
 	newC.c.fields = fields
@@ -304,15 +323,15 @@ func (c cfgSub) SetContext(ctx context) {
 }
 
 func (c cfgSub) reify(opts *options) (interface{}, error) {
-	fields := c.c.fields.fields
-	arr := c.c.fields.arr
+	fields := c.c.fields.dict()
+	arr := c.c.fields.array()
 
 	switch {
 	case len(fields) == 0 && len(arr) == 0:
 		return nil, nil
 	case len(fields) > 0 && len(arr) == 0:
 		m := make(map[string]interface{})
-		for k, v := range c.c.fields.fields {
+		for k, v := range fields {
 			var err error
 			if m[k], err = v.reify(opts); err != nil {
 				return nil, err
@@ -330,7 +349,7 @@ func (c cfgSub) reify(opts *options) (interface{}, error) {
 		return m, nil
 	default:
 		m := make(map[string]interface{})
-		for k, v := range c.c.fields.fields {
+		for k, v := range fields {
 			var err error
 			if m[k], err = v.reify(opts); err != nil {
 				return nil, err
@@ -489,4 +508,20 @@ func (s *cfgSplice) toFloat(opt *options) (float64, error) {
 		return 0, err
 	}
 	return strconv.ParseFloat(str, 64)
+}
+
+func isNil(v value) bool {
+	if v == nil {
+		return true
+	}
+	_, tst := v.(*cfgNil)
+	return tst
+}
+
+func isSub(v value) bool {
+	if v == nil {
+		return false
+	}
+	_, tst := v.(cfgSub)
+	return tst
 }

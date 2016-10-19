@@ -14,7 +14,7 @@ import json
 import argparse
 
 
-def fields_to_es_template(args, input, output, index):
+def fields_to_es_template(args, input, output, index, version):
     """
     Reads the YAML file from input and generates the JSON for
     the ES template in output. input and output are both file
@@ -52,7 +52,10 @@ def fields_to_es_template(args, input, output, index):
                 "_all": {
                     "norms": False
                 },
-                "properties": {}
+                "properties": {},
+                "_meta": {
+                    "version": version,
+                }
             }
         }
     }
@@ -65,6 +68,30 @@ def fields_to_es_template(args, input, output, index):
 
     properties = {}
     dynamic_templates = []
+
+    # Make strings keywords by default
+    if args.es2x:
+        dynamic_templates.append({
+            "strings_as_keyword": {
+                "mapping": {
+                    "type": "string",
+                    "index": "not_analyzed",
+                    "ignore_above": 1024
+                },
+                "match_mapping_type": "string",
+            }
+        })
+    else:
+        dynamic_templates.append({
+            "strings_as_keyword": {
+                "mapping": {
+                    "type": "keyword",
+                    "ignore_above": 1024
+                },
+                "match_mapping_type": "string",
+            }
+        })
+
     for section in docs["fields"]:
         prop, dynamic = fill_section_properties(args, section,
                                                 defaults, "")
@@ -116,7 +143,7 @@ def dedot(group):
         else:
             fields.append(field)
     for _, field in dedotted.items():
-        fields.append(field)
+        fields.append(dedot(field))
     group["fields"] = fields
     return group
 
@@ -178,23 +205,28 @@ def fill_field_properties(args, field, defaults, path):
             }
 
     elif field["type"] in ["geo_point", "date", "long", "integer",
-                           "double", "float", "half_float", "boolean"]:
+                           "double", "float", "half_float", "scaled_float",
+                           "boolean"]:
         # Convert all integer fields to long
         if field["type"] == "integer":
             field["type"] = "long"
 
-        if args.es2x and field["type"] == "half_float":
-            # ES 2.x doesn't support half floats, so convert to floats
+        if args.es2x and field["type"] in ["half_float", "scaled_float"]:
+            # ES 2.x doesn't support half or scaled floats, so convert to float
             field["type"] = "float"
 
         properties[field["name"]] = {
             "type": field.get("type")
         }
 
+        if field["type"] == "scaled_float":
+            properties[field["name"]]["scaling_factor"] = \
+                field.get("scaling_factor", 1000)
+
     elif field["type"] in ["dict", "list"]:
-        if field.get("dict-type") == "keyword":
+        if field.get("dict-type") == "text":
             # add a dynamic template to set all members of
-            # the dict as keywords
+            # the dict as text
             if len(path) > 0:
                 name = path + "." + field["name"]
             else:
@@ -205,8 +237,7 @@ def fill_field_properties(args, field, defaults, path):
                     name: {
                         "mapping": {
                             "type": "string",
-                            "index": "not_analyzed",
-                            "ignore_above": 1024
+                            "index": "analyzed",
                         },
                         "match_mapping_type": "string",
                         "path_match": name + ".*"
@@ -216,8 +247,7 @@ def fill_field_properties(args, field, defaults, path):
                 dynamic_templates.append({
                     name: {
                         "mapping": {
-                            "type": "keyword",
-                            "ignore_above": 1024
+                            "type": "text",
                         },
                         "match_mapping_type": "string",
                         "path_match": name + ".*"
@@ -283,5 +313,8 @@ if __name__ == "__main__":
         with open(args.es_beats + "/libbeat/_meta/fields.yml") as f:
             fields = f.read() + fields
 
+        with open(args.es_beats + "/dev-tools/packer/version.yml") as file:
+            version_data = yaml.load(file)
+
         with open(target, 'w') as output:
-            fields_to_es_template(args, fields, output, args.beatname + "-*")
+            fields_to_es_template(args, fields, output, args.beatname + "-*", version_data['version'])

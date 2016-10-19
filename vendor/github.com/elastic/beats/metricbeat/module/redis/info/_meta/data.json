@@ -23,9 +23,9 @@
             },
             "cpu": {
                 "used": {
-                    "sys": 1.49,
+                    "sys": 0.33,
                     "sys_children": 0,
-                    "user": 0.59,
+                    "user": 0.39,
                     "user_children": 0
                 }
             },
@@ -33,29 +33,47 @@
                 "allocator": "jemalloc-4.0.3",
                 "used": {
                     "lua": 37888,
-                    "peak": 1010736,
-                    "rss": 9601024,
-                    "value": 886048
+                    "peak": 883992,
+                    "rss": 4030464,
+                    "value": 883032
                 }
             },
             "persistence": {
+                "aof": {
+                    "bgrewrite": {
+                        "last_status": "ok"
+                    },
+                    "enabled": false,
+                    "rewrite": {
+                        "current_time": {
+                            "sec": -1
+                        },
+                        "in_progress": false,
+                        "last_time": {
+                            "sec": -1
+                        },
+                        "scheduled": false
+                    },
+                    "write": {
+                        "last_status": "ok"
+                    }
+                },
                 "loading": false,
                 "rdb": {
-                    "bgsave_in_progress": false,
-                    "changes_since_last_save": 4,
-                    "current_bgsave_time_sec": -1,
-                    "last_bgsave_status": "ok",
-                    "last_bgsave_time_sec": -1,
-                    "last_save_time": 1464763800
-                },
-                "used": {
-                    "current_rewrite_time_sec": -1,
-                    "enabled": false,
-                    "last_bgrewrite_status": "ok",
-                    "last_rewrite_time_sec": -1,
-                    "last_write_status": "ok",
-                    "rewrite_in_progress": false,
-                    "rewrite_scheduled": false
+                    "bgsave": {
+                        "current_time": {
+                            "sec": -1
+                        },
+                        "in_progress": false,
+                        "last_status": "ok",
+                        "last_time": {
+                            "sec": -1
+                        }
+                    },
+                    "last_save": {
+                        "changes_since": 2,
+                        "time": 1475698251
+                    }
                 }
             },
             "replication": {
@@ -71,30 +89,33 @@
             },
             "server": {
                 "arch_bits": "64",
-                "build_id": "5382f69a4e75566b",
+                "build_id": "5575d747b4b3b12c",
                 "config_file": "",
                 "gcc_version": "4.9.2",
                 "git_dirty": "0",
                 "git_sha1": "00000000",
                 "hz": 10,
-                "lru_clock": 5147609,
+                "lru_clock": 16080842,
                 "mode": "standalone",
                 "multiplexing_api": "epoll",
-                "os": "Linux 4.4.11-moby x86_64",
+                "os": "Linux 4.4.22-moby x86_64",
                 "process_id": 1,
-                "run_id": "8c07c362f21cffca73bc37b462e4183d67ae9a0c",
+                "run_id": "d37e5ebfe0ae6c4972dbe9f0174a1637bb8247f6",
                 "tcp_port": 6379,
-                "uptime": 1601,
-                "version": "3.2.0"
+                "uptime": 383,
+                "version": "3.2.4"
             },
             "stats": {
+                "commands_processed": 70,
                 "connections": {
-                    "received": 61,
+                    "received": 17,
                     "rejected": 0
                 },
-                "instantaneous_input_kbps": 0,
-                "instantaneous_ops_per_sec": 0,
-                "instantaneous_output_kbps": 0,
+                "instantaneous": {
+                    "input_kbps": 0.07,
+                    "ops_per_sec": 2,
+                    "output_kbps": 0.07
+                },
                 "keys": {
                     "evicted": 0,
                     "expired": 0
@@ -105,16 +126,25 @@
                 },
                 "latest_fork_usec": 0,
                 "migrate_cached_sockets": 0,
-                "pubsub_channels": 0,
-                "pubsub_patterns": 0,
+                "net": {
+                    "input": {
+                        "bytes": 1949
+                    },
+                    "output": {
+                        "bytes": 4956554
+                    }
+                },
+                "pubsub": {
+                    "channels": 0,
+                    "patterns": 0
+                },
                 "sync": {
                     "full": 0,
-                    "partial_err": 0,
-                    "partial_ok": 0
-                },
-                "total_commands_processed": 55,
-                "total_net_input_bytes": 2000,
-                "total_net_output_bytes": 37007
+                    "partial": {
+                        "err": 0,
+                        "ok": 0
+                    }
+                }
             }
         }
     },
