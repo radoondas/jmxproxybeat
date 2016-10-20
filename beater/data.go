@@ -23,21 +23,21 @@ const (
 )
 
 func (bt *Jmxproxybeat) GetJMX(u url.URL) error {
-	for i := 0; i < len(bt.Beans); i++ {
-		for j := 0; j < len(bt.Beans[i].Attributes); j++ {
-			if len(bt.Beans[i].Attributes[j].Keys) > 0 {
-				for k := 0; k < len(bt.Beans[i].Attributes[j].Keys); k++ {
+	for i := 0; i < len(bt.config.Beans); i++ {
+		for j := 0; j < len(bt.config.Beans[i].Attributes); j++ {
+			if len(bt.config.Beans[i].Attributes[j].Keys) > 0 {
+				for k := 0; k < len(bt.config.Beans[i].Attributes[j].Keys); k++ {
 
-					err := bt.GetJMXObject(u, bt.Beans[i].Name, bt.Beans[i].Attributes[j].Name, bt.Beans[i].Attributes[j].Keys[k], bt.CAFile)
+					err := bt.GetJMXObject(u, bt.config.Beans[i].Name, bt.config.Beans[i].Attributes[j].Name, bt.config.Beans[i].Attributes[j].Keys[k], bt.config.SSL.CAfile)
 					if err != nil {
 						logp.Err("Error requesting JMX: %v", err)
 					}
 				}
 			} else {
-				if len(bt.Beans[i].Keys) > 0 {
-					for k := 0; k < len(bt.Beans[i].Keys); k++ {
+				if len(bt.config.Beans[i].Keys) > 0 {
+					for k := 0; k < len(bt.config.Beans[i].Keys); k++ {
 
-						err := bt.GetJMXObject(u, bt.Beans[i].Name, bt.Beans[i].Attributes[j].Name, bt.Beans[i].Keys[k], bt.CAFile)
+						err := bt.GetJMXObject(u, bt.config.Beans[i].Name, bt.config.Beans[i].Attributes[j].Name, bt.config.Beans[i].Keys[k], bt.config.SSL.CAfile)
 						if err != nil {
 							logp.Err("Error requesting JMX: %v", err)
 						}
@@ -45,7 +45,7 @@ func (bt *Jmxproxybeat) GetJMX(u url.URL) error {
 
 				} else {
 
-					err := bt.GetJMXObject(u, bt.Beans[i].Name, bt.Beans[i].Attributes[j].Name, "", bt.CAFile)
+					err := bt.GetJMXObject(u, bt.config.Beans[i].Name, bt.config.Beans[i].Attributes[j].Name, "", bt.config.SSL.CAfile)
 					if err != nil {
 						logp.Err("Error requesting JMX: %v", err)
 					}
@@ -109,7 +109,7 @@ func (bt *Jmxproxybeat) GetJMXObject(u url.URL, name, attribute, key string, CAF
 	req, err := http.NewRequest("GET", ParsedUrl.String(), nil)
 
 	if bt.auth {
-		req.SetBasicAuth(bt.username, bt.password)
+		req.SetBasicAuth(bt.config.Authentication.Username, bt.config.Authentication.Password)
 	}
 	res, err := client.Do(req)
 
@@ -140,7 +140,7 @@ func (bt *Jmxproxybeat) GetJMXObject(u url.URL, name, attribute, key string, CAF
 			"hostname":  u.Host,
 		},
 	}
-	bt.events.PublishEvent(event)
+	bt.client.PublishEvent(event)
 	logp.Info("Event: %+v", event)
 
 	return nil

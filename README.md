@@ -18,10 +18,11 @@ Supported Tomcat versions:
 | Tomcat version |
 | -------------- |
 | Tomcat 7       |
-| Tomcat 8       |
+| Tomcat 8.0     |
+| Tomcat 8.5     |
 
 ## Tomcat configuration
-General reading about Tomcat [JMX Proxy servlet](https://tomcat.apache.org/tomcat-8.0-doc/manager-howto.html#Using_the_JMX_Proxy_Servlet). 
+General reading about Tomcat [JMX Proxy servlet](https://tomcat.apache.org/tomcat-8.0-doc/manager-howto.html#Using_the_JMX_Proxy_Servlet).
 
 In order to enable JMX Proxy Servlet in default Tomcat package, minimal configuration in **conf/tomcat-users.xml** is required. Tomcat restart is also required.
 ```xml
@@ -48,7 +49,7 @@ Ensure that this folder is at the following location:
 
 ### Requirements
 
-* [Golang](https://golang.org/dl/) 1.6
+* [Golang](https://golang.org/dl/) 1.7
 * [Glide](https://github.com/Masterminds/glide) >= 0.10.0
 
 ### Build

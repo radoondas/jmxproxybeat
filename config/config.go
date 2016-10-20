@@ -3,34 +3,61 @@
 
 package config
 
+import "time"
+
 type Config struct {
-	Jmxproxybeat JmxproxybeatConfig
+	SSL            SSL            `config:"ssl"`
+	URLs           []string       `config:"urls"`
+	Authentication Authentication `config:"authentication"`
+	Beans          []Bean         `config:"beans"`
+	Period         time.Duration  `config:"period"`
 }
 
-type JmxproxybeatConfig struct {
-	Ssl            SSLConfig            `yaml:"ssl"`
-	Period         string               `yaml:"period"`
-	URLs           []string             `yaml:"urls"`
-	Authentication AuthenticationConfig `yaml:"authentication"`
-	Beans          []BeanConfig         `yaml:"beans"`
+type SSL struct {
+	CAfile string
 }
 
-type SSLConfig struct {
-	Cafile string
-}
-
-type AuthenticationConfig struct {
+type Authentication struct {
 	Username string
 	Password string
 }
 
-type BeanConfig struct {
-	Name       string      `yaml:"name"`
-	Attributes []Attribute `yaml:"attributes"`
-	Keys       []string    `yaml:"keys"`
+type Bean struct {
+	Name       string      `config:"name"`
+	Attributes []Attribute `config:"attributes"`
+	Keys       []string    `config:"keys"`
 }
 
 type Attribute struct {
-	Name string   `yaml:"name"`
-	Keys []string `yaml:"keys"`
+	Name string   `config:"name"`
+	Keys []string `config:"keys"`
 }
+
+var (
+	DefaultConfig = Config{
+		Period: 1 * time.Second,
+		URLs:   []string{"http://127.0.0.1:8080"},
+		Authentication: Authentication{
+			Username: "",
+			Password: "",
+		},
+		SSL: SSL{
+			CAfile: "",
+		},
+		Beans: []Bean{
+			{
+				Name: "java.lang:type=Memory",
+				Keys: []string{"committed", "init", "max", "used"},
+				Attributes: []Attribute{
+					{
+						Name: "HeapMemoryUsage",
+						Keys: []string{},
+					}, {
+						Name: "NonHeapMemoryUsage",
+						Keys: []string{},
+					},
+				},
+			},
+		},
+	}
+)

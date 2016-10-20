@@ -8,8 +8,11 @@ import (
 	"github.com/radoondas/jmxproxybeat/beater"
 )
 
+// Name of this Beat.
+var Name = "jmxproxybeat"
+
 func main() {
-	err := beat.Run("jmxproxybeat", "", beater.New())
+	err := beat.Run(Name, "", beater.New)
 	if err != nil {
 		os.Exit(1)
 	}

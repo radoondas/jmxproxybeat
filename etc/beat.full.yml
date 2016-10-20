@@ -6,13 +6,15 @@ jmxproxybeat:
   # Defines how often an event is sent to the output
   period: 10s
 
+  # Defines list of sockets where Tomcat listen.
   urls: ["http://127.0.0.1:8080"]
 
-   # Authentication
+  # Defines authentication for Tomcat's manager servlet
   authentication:
     username: "tomcat"
     password: "s3cret"
 
+  # Defines SSL configuration.
   #ssl:
     #cafile: "/path/to/ca/CA.pem"
 
@@ -51,62 +53,62 @@ jmxproxybeat:
           name: TotalStartedThreadCount
         - attribute:
           name: PeakThreadCount
-    - bean:
-      name: java.lang:type=GarbageCollector,name=PS Scavenge
-      attributes:
-        - attribute:
-          name: CollectionCount
-        - attribute:
-          name: CollectionTime
-        - attribute:
-          name: LastGcInfo
-          keys:
-            - GcThreadCount
-            - duration
-            - endTime
-            - id
-    - bean:
-      name: java.lang:type=GarbageCollector,name=PS MarkSweep
-      attributes:
-        - attribute:
-          name: CollectionCount
-        - attribute:
-          name: CollectionTime
-        - attribute:
-          name: LastGcInfo
-          keys:
-            - GcThreadCount
-            - duration
-            - endTime
-            - id
-    - bean:
-      name: java.lang:type=GarbageCollector,name=ConcurrentMarkSweep
-      attributes:
-        - attribute:
-           name: CollectionCount
-        - attribute:
-           name: CollectionTime
-        - attribute:
-          name: LastGcInfo
-          keys:
-            - GcThreadCount
-            - duration
-            - endTime
-            - id
-    - bean:
-      name: java.lang:type=GarbageCollector,name=ParNew
-      attributes:
-        - attribute:
-           name: CollectionCount
-        - attribute:
-           name: CollectionTime
-        - attribute:
-          name: LastGcInfo
-          keys:
-            - GcThreadCount
-            - duration
-            - endTime
-            - id
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=PS Scavenge
+#      attributes:
+#        - attribute:
+#          name: CollectionCount
+#        - attribute:
+#          name: CollectionTime
+#        - attribute:
+#          name: LastGcInfo
+#          keys:
+#            - GcThreadCount
+#            - duration
+#            - endTime
+#            - id
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=PS MarkSweep
+#      attributes:
+#        - attribute:
+#          name: CollectionCount
+#        - attribute:
+#          name: CollectionTime
+#        - attribute:
+#          name: LastGcInfo
+#          keys:
+#            - GcThreadCount
+#            - duration
+#            - endTime
+#            - id
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=ConcurrentMarkSweep
+#      attributes:
+#        - attribute:
+#           name: CollectionCount
+#        - attribute:
+#           name: CollectionTime
+#        - attribute:
+#          name: LastGcInfo
+#          keys:
+#            - GcThreadCount
+#            - duration
+#            - endTime
+#            - id
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=ParNew
+#      attributes:
+#        - attribute:
+#           name: CollectionCount
+#        - attribute:
+#           name: CollectionTime
+#        - attribute:
+#          name: LastGcInfo
+#          keys:
+#            - GcThreadCount
+#            - duration
+#            - endTime
+#            - id
     - bean:
       name: java.lang:type=ClassLoading
       attributes:
