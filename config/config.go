@@ -35,7 +35,7 @@ type Attribute struct {
 
 var (
 	DefaultConfig = Config{
-		Period: 1 * time.Second,
+		Period: 10 * time.Second,
 		URLs:   []string{"http://127.0.0.1:8080"},
 		Authentication: Authentication{
 			Username: "",
