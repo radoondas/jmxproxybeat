@@ -7,7 +7,7 @@ jmxproxybeat:
   period: 10s
 
   # Defines list of sockets where Tomcat listen.
-  urls: ["http://127.0.0.1:8080"]
+  hosts: ["http://127.0.0.1:8080"]
 
   # Defines authentication for Tomcat's manager servlet
   authentication:

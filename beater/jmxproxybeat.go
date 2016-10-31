@@ -20,7 +20,7 @@ const (
 type Jmxproxybeat struct {
 	config cfg.Config
 	done   chan struct{}
-	urls   []*url.URL
+	hosts  []*url.URL
 	auth   bool
 	client publisher.Client
 }
@@ -49,14 +49,14 @@ func New(b *beat.Beat, rawCfg *common.Config) (beat.Beater, error) {
 /// *** Beater interface methods ***///
 func (bt *Jmxproxybeat) init(b *beat.Beat) error {
 
-	bt.urls = make([]*url.URL, len(bt.config.URLs))
-	for i := 0; i < len(bt.config.URLs); i++ {
-		u, err := url.Parse(bt.config.URLs[i])
+	bt.hosts = make([]*url.URL, len(bt.config.Hosts))
+	for i := 0; i < len(bt.config.Hosts); i++ {
+		h, err := url.Parse(bt.config.Hosts[i])
 		if err != nil {
-			logp.Err("Invalid JMX url: %v", err)
+			logp.Err("Invalid JMX hosts: %v", err)
 			return err
 		}
-		bt.urls[i] = u
+		bt.hosts[i] = h
 	}
 
 	if bt.config.SSL.CAfile == "" {
@@ -77,7 +77,7 @@ func (bt *Jmxproxybeat) Run(b *beat.Beat) error {
 
 	bt.client = b.Publisher.Connect()
 	//for each url
-	for _, u := range bt.urls {
+	for _, u := range bt.hosts {
 
 		go func(u *url.URL) {
 			ticker := time.NewTicker(bt.config.Period)

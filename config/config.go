@@ -7,19 +7,19 @@ import "time"
 
 type Config struct {
 	SSL            SSL            `config:"ssl"`
-	URLs           []string       `config:"urls"`
+	Hosts          []string       `config:"hosts" validate:"nonzero,required"`
 	Authentication Authentication `config:"authentication"`
 	Beans          []Bean         `config:"beans"`
 	Period         time.Duration  `config:"period"`
 }
 
 type SSL struct {
-	CAfile string
+	CAfile string `config:"cafile"`
 }
 
 type Authentication struct {
-	Username string
-	Password string
+	Username string `config:"username"`
+	Password string `config:"password"`
 }
 
 type Bean struct {
@@ -36,7 +36,7 @@ type Attribute struct {
 var (
 	DefaultConfig = Config{
 		Period: 10 * time.Second,
-		URLs:   []string{"http://127.0.0.1:8080"},
+		Hosts:  []string{"http://127.0.0.1:8080"},
 		Authentication: Authentication{
 			Username: "",
 			Password: "",
