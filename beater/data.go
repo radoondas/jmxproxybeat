@@ -147,7 +147,7 @@ func (bt *Jmxproxybeat) GetJMXObject(u url.URL, name, attribute, key string, CAF
 }
 
 func GetJMXValue(responseBody string) (float64, error) {
-	var re *regexp.Regexp
+	var jmxRegexp *regexp.Regexp
 	var respValue float64
 
 	if strings.HasPrefix(responseBody, "Error") {
@@ -155,8 +155,8 @@ func GetJMXValue(responseBody string) (float64, error) {
 	}
 
 	//TODO: This requires lots of tuning!!
-	re = regexp.MustCompile("\\d*(\\.\\d+)?$")
-	if matches := re.FindStringSubmatch(responseBody); matches != nil {
+	jmxRegexp = regexp.MustCompile("\\d*(\\.\\d+)?$")
+	if matches := jmxRegexp.FindStringSubmatch(responseBody); matches != nil {
 		respV, err := strconv.ParseFloat(matches[0], 64)
 		//TODO: test for empty string!
 		if err != nil {
