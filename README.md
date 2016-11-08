@@ -63,10 +63,35 @@ make
 
 ### Run
 
+To run Jmxproxybeat without debugging output enabled, run:
+
+```
+./jmxproxybeat -c jmxproxybeat.yml
+```
+
 To run Jmxproxybeat with debugging output enabled, run:
 
 ```
 ./jmxproxybeat -c jmxproxybeat.yml -e -d "*"
+```
+
+Note: There is no need to import template mapping any more. Jmxproxybeat will import the template on first run. It will also decide which template to import (2.X or 5.X).
+
+### Kibana visualisations
+In order to import prebuilt visualisations run:
+
+```
+./scripts/import_dashboards -dir etc/kibana
+```
+
+In case your elasticsearch is somewhere else run:
+```
+./scripts/import_dashboards -dir etc/kibana -es "http://127.0.0.1:9204"
+```
+
+For more help on import run:
+```
+./scripts/import_dashboards --help
 ```
 
 ### Example JSON output
