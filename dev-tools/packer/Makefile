@@ -5,7 +5,7 @@ BUILDID?=$(DATE)
 all: jmxproxybeat/deb jmxproxybeat/rpm jmxproxybeat/darwin jmxproxybeat/win jmxproxybeat/bin build/upload/build_id.txt latest
 
 ES_BEATS=../../vendor/github.com/elastic/beats
-include $(ES_BEATS)/dev-tools/packer/scripts/Makefile
+include $(ES_BEATS)/dev-tools/packer/Makefile
 
 
 .PHONY: jmxproxybeat
