@@ -110,23 +110,3 @@ func (bt *Jmxproxybeat) Stop() {
 		close(bt.done)
 	}
 }
-
-// OLD snippet of code
-//for i := 0; i < len(bt.config.Beans); i++ {
-//		bt.Beans[i].Name = bt.config.Beans[i].Name
-//		bt.Beans[i].Attributes = bt.config.Beans[i].Attributes
-//		bt.Beans[i].Keys = bt.config.Beans[i].Keys
-//
-//		logp.Debug(selector, "Bean name: %s", bt.config.Beans[i].Name)
-//		for j := 0; j < len(bt.config.Beans[i].Attributes); j++ {
-//			logp.Debug(selector, "\tBean attribute: %s", bt.config.Beans[i].Attributes[j].Name)
-//			if len(bt.config.Beans[i].Attributes[j].Keys) > 0 {
-//				for k := 0; k < len(bt.config.Beans[i].Attributes[j].Keys); k++ {
-//					logp.Debug(selector, "\t\tAttribute key: %s", bt.config.Beans[i].Attributes[j].Keys[k])
-//				}
-//			}
-//		}
-//		for k := 0; k < len(bt.config.Beans[i].Keys); k++ {
-//			logp.Debug(selector, "\tBean key: %s", bt.config.Beans[i].Keys[k])
-//		}
-//	}
