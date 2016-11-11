@@ -1,5 +1,5 @@
 BEATNAME=jmxproxybeat
-BEAT_DIR=github.com/radoondas
+BEAT_DIR=github.com/radoondas/jmxproxybeat
 SYSTEM_TESTS=false
 TEST_ENVIRONMENT=false
 ES_BEATS?=./vendor/github.com/elastic/beats
@@ -39,3 +39,7 @@ git-init:
 # This is called by the beats packer before building starts
 .PHONY: before-build
 before-build:
+
+# Collects all dependencies and then calls update
+.PHONY: collect
+collect:
