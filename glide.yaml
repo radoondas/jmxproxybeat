@@ -1,5 +1,5 @@
 package: github.com/radoondas/jmxproxybeat
 import:
 - package: github.com/elastic/beats
-#  version: fa08f52d365f3fc02c8d790d770862394d29e4d2
-  version: 5.0.0
+  version: dad0e0977db606733aef2724004bd691e80a2e38
+#  version: 5.0.0
