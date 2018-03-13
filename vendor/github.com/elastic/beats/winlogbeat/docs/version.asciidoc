@@ -1,2 +1,0 @@
-:stack-version: 5.0.1
-:doc-branch: 5.0

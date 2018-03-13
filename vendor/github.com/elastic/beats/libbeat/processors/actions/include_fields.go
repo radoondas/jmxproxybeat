@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
+
+	"github.com/elastic/beats/libbeat/beat"
 	"github.com/elastic/beats/libbeat/common"
 	"github.com/elastic/beats/libbeat/processors"
 )
@@ -19,7 +22,7 @@ func init() {
 			allowedFields("fields", "when")))
 }
 
-func newIncludeFields(c common.Config) (processors.Processor, error) {
+func newIncludeFields(c *common.Config) (processors.Processor, error) {
 	config := struct {
 		Fields []string `config:"fields"`
 	}{}
@@ -41,31 +44,33 @@ func newIncludeFields(c common.Config) (processors.Processor, error) {
 		}
 	}
 
-	f := includeFields{Fields: config.Fields}
-	return &f, nil
+	f := &includeFields{Fields: config.Fields}
+	return f, nil
 }
 
-func (f includeFields) Run(event common.MapStr) (common.MapStr, error) {
+func (f *includeFields) Run(event *beat.Event) (*beat.Event, error) {
 	filtered := common.MapStr{}
-	errors := []string{}
+	var errs []string
 
 	for _, field := range f.Fields {
-		hasKey, err := event.HasKey(field)
-		if err != nil {
-			errors = append(errors, err.Error())
+		v, err := event.GetValue(field)
+		if err == nil {
+			_, err = filtered.Put(field, v)
 		}
 
-		if hasKey {
-			errorOnCopy := event.CopyFieldsTo(filtered, field)
-			if errorOnCopy != nil {
-				errors = append(errors, err.Error())
-			}
+		// Ignore ErrKeyNotFound errors
+		if err != nil && errors.Cause(err) != common.ErrKeyNotFound {
+			errs = append(errs, err.Error())
 		}
 	}
 
-	return filtered, fmt.Errorf(strings.Join(errors, ", "))
+	event.Fields = filtered
+	if len(errs) > 0 {
+		return event, fmt.Errorf(strings.Join(errs, ", "))
+	}
+	return event, nil
 }
 
-func (f includeFields) String() string {
+func (f *includeFields) String() string {
 	return "include_fields=" + strings.Join(f.Fields, ", ")
 }

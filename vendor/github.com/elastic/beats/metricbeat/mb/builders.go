@@ -4,14 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/elastic/beats/libbeat/common"
-	"github.com/elastic/beats/libbeat/logp"
-
 	"github.com/joeshaw/multierror"
 	"github.com/pkg/errors"
-)
 
-var debugf = logp.MakeDebug("mb")
+	"github.com/elastic/beats/libbeat/common"
+)
 
 var (
 	// ErrEmptyConfig indicates that modules configuration list is nil or empty.
@@ -20,107 +17,37 @@ var (
 	// ErrAllModulesDisabled indicates that all modules are disabled. At least
 	// one module must be enabled.
 	ErrAllModulesDisabled = errors.New("all modules are disabled")
+
+	// ErrModuleDisabled indicates a disabled module has been tried to instantiate.
+	ErrModuleDisabled = errors.New("disabled module")
 )
 
-// NewModules builds new Modules and their associated MetricSets based on the
-// provided configuration data. config is a list module config data (the data
+// NewModule builds a new Module and its associated MetricSets based on the
+// provided configuration data. config contains config data (the data
 // will be unpacked into ModuleConfig structs). r is the Register where the
 // ModuleFactory's and MetricSetFactory's will be obtained from. This method
-// returns a mapping of Modules to MetricSets or an error.
-func NewModules(config []*common.Config, r *Register) (map[Module][]MetricSet, error) {
-	if config == nil || len(config) == 0 {
-		return nil, ErrEmptyConfig
+// returns a Module and its configured MetricSets or an error.
+func NewModule(config *common.Config, r *Register) (Module, []MetricSet, error) {
+	if !config.Enabled() {
+		return nil, nil, ErrModuleDisabled
 	}
 
-	baseModules, err := newBaseModulesFromConfig(config)
+	bm, err := newBaseModuleFromConfig(config)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// Create new Modules using the registered ModuleFactory's
-	modules := make([]Module, 0, len(baseModules))
-	var errs multierror.Errors
-	for _, bm := range baseModules {
-		f := r.moduleFactory(bm.Name())
-		if f == nil {
-			f = DefaultModuleFactory
-		}
-
-		module, err := f(bm)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		modules = append(modules, module)
+	module, err := createModule(r, bm)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	if errs.Err() != nil {
-		return nil, errs.Err()
+	metricsets, err := initMetricSets(r, module)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	// Create new MetricSets for each Module using the registered MetricSetFactory's
-	modToMetricSets := make(map[Module][]MetricSet, len(modules))
-	for _, bms := range newBaseMetricSets(modules) {
-		f, err := r.metricSetFactory(bms.Module().Name(), bms.Name())
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-
-		metricSet, err := f(bms)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		err = mustImplementFetcher(metricSet)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		err = mustHaveModule(metricSet, bms)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-
-		if list, ok := modToMetricSets[metricSet.Module()]; ok {
-			list = append(list, metricSet)
-			modToMetricSets[metricSet.Module()] = list
-			continue
-		}
-		modToMetricSets[metricSet.Module()] = []MetricSet{metricSet}
-	}
-
-	if errs.Err() != nil {
-		return nil, errs.Err()
-	}
-
-	if len(modToMetricSets) == 0 {
-		return nil, ErrAllModulesDisabled
-	}
-
-	debugf("mb.NewModules() is returning %s", modToMetricSets)
-	return modToMetricSets, nil
-}
-
-// newBaseModulesFromConfig creates new BaseModules from a list of configs
-// each containing ModuleConfig data.
-func newBaseModulesFromConfig(config []*common.Config) ([]BaseModule, error) {
-	var errs multierror.Errors
-	baseModules := make([]BaseModule, 0, len(config))
-	for _, rawConfig := range config {
-		bm, err := newBaseModuleFromConfig(rawConfig)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-
-		if bm.config.Enabled {
-			baseModules = append(baseModules, bm)
-		}
-	}
-
-	return baseModules, errs.Err()
+	return module, metricsets, nil
 }
 
 // newBaseModuleFromConfig creates a new BaseModule from config. The returned
@@ -135,6 +62,11 @@ func newBaseModuleFromConfig(rawConfig *common.Config) (BaseModule, error) {
 		return baseModule, err
 	}
 
+	// If timeout is not set, timeout is set to the same value as period
+	if baseModule.config.Timeout == 0 {
+		baseModule.config.Timeout = baseModule.config.Period
+	}
+
 	baseModule.name = strings.ToLower(baseModule.config.Module)
 
 	err = mustNotContainDuplicates(baseModule.config.Hosts)
@@ -145,27 +77,93 @@ func newBaseModuleFromConfig(rawConfig *common.Config) (BaseModule, error) {
 	return baseModule, nil
 }
 
-// newBaseMetricSets creates a new BaseMetricSet for all MetricSets defined
-// in the modules' config.
-func newBaseMetricSets(modules []Module) []BaseMetricSet {
-	baseMetricSets := make([]BaseMetricSet, 0, len(modules))
-	for _, m := range modules {
-		hosts := []string{""}
-		if len(m.Config().Hosts) > 0 {
-			hosts = m.Config().Hosts
+func createModule(r *Register, bm BaseModule) (Module, error) {
+	f := r.moduleFactory(bm.Name())
+	if f == nil {
+		f = DefaultModuleFactory
+	}
+
+	return f(bm)
+}
+
+func initMetricSets(r *Register, m Module) ([]MetricSet, error) {
+	var (
+		errs       multierror.Errors
+		metricsets []MetricSet
+	)
+
+	bms, err := newBaseMetricSets(r, m)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, bm := range bms {
+		registration, err := r.metricSetRegistration(bm.Module().Name(), bm.Name())
+		if err != nil {
+			errs = append(errs, err)
+			continue
 		}
 
-		for _, name := range m.Config().MetricSets {
-			for _, host := range hosts {
-				baseMetricSets = append(baseMetricSets, BaseMetricSet{
-					name:   strings.ToLower(name),
-					module: m,
-					host:   host,
-				})
+		bm.registration = registration
+		bm.hostData = HostData{URI: bm.host}
+		if registration.HostParser != nil {
+			bm.hostData, err = registration.HostParser(bm.Module(), bm.host)
+			if err != nil {
+				errs = append(errs, errors.Wrapf(err, "host parsing failed for %v-%v",
+					bm.Module().Name(), bm.Name()))
+				continue
+			}
+			bm.host = bm.hostData.Host
+		}
+
+		metricSet, err := registration.Factory(bm)
+		if err == nil {
+			err = mustHaveModule(metricSet, bm)
+			if err == nil {
+				err = mustImplementFetcher(metricSet)
 			}
 		}
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		metricsets = append(metricsets, metricSet)
 	}
-	return baseMetricSets
+
+	return metricsets, errs.Err()
+}
+
+// newBaseMetricSets creates a new BaseMetricSet for all MetricSets defined
+// in the module's config. An error is returned if no MetricSets are specified
+// in the module's config and no default MetricSet is defined.
+func newBaseMetricSets(r *Register, m Module) ([]BaseMetricSet, error) {
+	hosts := []string{""}
+	if l := m.Config().Hosts; len(l) > 0 {
+		hosts = l
+	}
+
+	metricSetNames := m.Config().MetricSets
+	if len(metricSetNames) == 0 {
+		var err error
+		metricSetNames, err = r.defaultMetricSets(m.Name())
+		if err != nil {
+			return nil, errors.Errorf("no metricsets configured for module '%s'", m.Name())
+		}
+	}
+
+	var metricsets []BaseMetricSet
+	for _, name := range metricSetNames {
+		name = strings.ToLower(name)
+		for _, host := range hosts {
+			metricsets = append(metricsets, BaseMetricSet{
+				name:   name,
+				module: m,
+				host:   host,
+			})
+		}
+	}
+	return metricsets, nil
 }
 
 // mustHaveModule returns an error if the given MetricSet's Module() method
@@ -191,15 +189,34 @@ func mustImplementFetcher(ms MetricSet) error {
 		ifcs = append(ifcs, "EventsFetcher")
 	}
 
+	if _, ok := ms.(ReportingMetricSet); ok {
+		ifcs = append(ifcs, "ReportingMetricSet")
+	}
+
+	if _, ok := ms.(PushMetricSet); ok {
+		ifcs = append(ifcs, "PushMetricSet")
+	}
+
+	if _, ok := ms.(ReportingMetricSetV2); ok {
+		ifcs = append(ifcs, "ReportingMetricSetV2")
+	}
+
+	if _, ok := ms.(PushMetricSetV2); ok {
+		ifcs = append(ifcs, "PushMetricSetV2")
+	}
+
 	switch len(ifcs) {
 	case 0:
-		return fmt.Errorf("MetricSet '%s/%s' does not implement a Fetcher "+
-			"interface", ms.Module().Name(), ms.Name())
+		return fmt.Errorf("MetricSet '%s/%s' does not implement an event "+
+			"producing interface (EventFetcher, EventsFetcher, "+
+			"ReportingMetricSet, ReportingMetricSetV2, PushMetricSet, or "+
+			"PushMetricSetV2)",
+			ms.Module().Name(), ms.Name())
 	case 1:
 		return nil
 	default:
 		return fmt.Errorf("MetricSet '%s/%s' can only implement a single "+
-			"Fetcher interface, but implements %v", ms.Module().Name(),
+			"event producing interface, but implements %v", ms.Module().Name(),
 			ms.Name(), ifcs)
 	}
 }

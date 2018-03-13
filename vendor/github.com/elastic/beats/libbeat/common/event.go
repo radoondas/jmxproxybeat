@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/elastic/beats/libbeat/logp"
 
@@ -116,6 +117,26 @@ func normalizeSlice(v reflect.Value, keys ...string) (interface{}, []error) {
 func normalizeValue(value interface{}, keys ...string) (interface{}, []error) {
 	if value == nil {
 		return nil, nil
+	}
+
+	// Normalize time values to a common.Time with UTC time zone.
+	switch v := value.(type) {
+	case time.Time:
+		value = Time(v.UTC())
+	case []time.Time:
+		times := make([]Time, 0, len(v))
+		for _, t := range v {
+			times = append(times, Time(t.UTC()))
+		}
+		value = times
+	case Time:
+		value = Time(time.Time(v).UTC())
+	case []Time:
+		times := make([]Time, 0, len(v))
+		for _, t := range v {
+			times = append(times, Time(time.Time(t).UTC()))
+		}
+		value = times
 	}
 
 	switch value.(type) {
@@ -228,4 +249,31 @@ func joinKeys(keys ...string) string {
 // Defines the marshal of the Float type
 func (f Float) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf("%.6f", f)), nil
+}
+
+// DeDot a string by replacing all . with _
+// This helps when sending data to Elasticsearch to prevent object and key collisions.
+func DeDot(s string) string {
+	return strings.Replace(s, ".", "_", -1)
+}
+
+// DeDotJSON replaces in keys all . with _
+// This helps when sending data to Elasticsearch to prevent object and key collisions.
+func DeDotJSON(json interface{}) interface{} {
+	switch json.(type) {
+	case map[string]interface{}:
+		result := map[string]interface{}{}
+		for key, value := range json.(map[string]interface{}) {
+			result[DeDot(key)] = DeDotJSON(value)
+		}
+		return result
+	case []interface{}:
+		result := make([]interface{}, len(json.([]interface{})))
+		for i, value := range json.([]interface{}) {
+			result[i] = DeDotJSON(value)
+		}
+		return result
+	default:
+		return json
+	}
 }

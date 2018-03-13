@@ -2,6 +2,7 @@
   type: group
   description: >
     `status` contains the metrics that were obtained by the status SQL query.
+  release: ga
   fields:
     - name: aborted
       type: group
@@ -135,3 +136,27 @@
     - name: opened_tables
       type: long
       description: >
+
+    - name: command
+      type: group
+      description: >
+      fields:
+        - name: delete
+          type: long
+          description: >
+            The number of DELETE queries since startup.
+
+        - name: insert
+          type: long
+          description: >
+            The number of INSERT queries since startup.
+
+        - name: select
+          type: long
+          description: >
+            The number of SELECT queries since startup.
+
+        - name: update
+          type: long
+          description: >
+            The number of UPDATE queries since startup.

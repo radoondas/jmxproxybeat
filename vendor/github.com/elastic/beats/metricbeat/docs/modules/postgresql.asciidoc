@@ -3,13 +3,13 @@ This file is generated! See scripts/docs_collector.py
 ////
 
 [[metricbeat-module-postgresql]]
-== PostgreSQL Module
+== PostgreSQL module
 
 This module periodically fetches metrics from
 https://www.postgresql.org/[PostgreSQL] servers.
 
 [float]
-=== Module-Specific Configuration Notes
+=== Module-specific configuration notes
 
 When configuring the `hosts` option, you must use Postgres URLs of the following
 format:
@@ -34,10 +34,9 @@ Or more complex like:
   hosts: ["postgres://localhost:40001?sslmode=disable", "postgres://otherhost:40001"]
 ----------------------------------------------------------------------
 
-WARNING: In case you use username and password in the hosts array, this
-information will be sent with each event as part of the `metricset.host` field.
-To prevent sending username and password the config options `username` and
-`password` can be used.
+You can also separately specify the username and password using the respective
+configuration options. Usernames and passwords specified in the URL take
+precedence over those specified in the `username` and `password` config options.
 
 [source,yaml]
 ----
@@ -56,7 +55,7 @@ versions >= 9.
 
 
 [float]
-=== Example Configuration
+=== Example configuration
 
 The PostgreSQL module supports the standard configuration options that are described
 in <<configuration-metricbeat>>. Here is an example configuration:
@@ -64,36 +63,30 @@ in <<configuration-metricbeat>>. Here is an example configuration:
 [source,yaml]
 ----
 metricbeat.modules:
-#- module: postgresql
-  #metricsets:
+- module: postgresql
+  metricsets:
     # Stats about every PostgreSQL database
-    #- database
+    - database
 
     # Stats about the background writer process's activity
-    #- bgwriter
+    - bgwriter
 
     # Stats about every PostgreSQL process
-    #- activity
+    - activity
 
-  #enabled: true
-  #period: 10s
+  period: 10s
 
-  # The host must be passed as PostgreSQL DSN. Example:
+  # The host must be passed as PostgreSQL URL. Example:
   # postgres://localhost:5432?sslmode=disable
   # The available parameters are documented here:
   # https://godoc.org/github.com/lib/pq#hdr-Connection_String_Parameters
-  #
-  # Warning: specifying the user/password in the hosts array is possible
-  # but it will result in the password being present in the output documents.
-  # We recommend using the username and password options instead.
-  #hosts: ["postgres://localhost:5432"]
+  hosts: ["postgres://localhost:5432"]
 
   # Username to use when connecting to PostgreSQL. Empty by default.
   #username: user
 
   # Password to use when connecting to PostgreSQL. Empty by default.
   #password: pass
-
 ----
 
 [float]

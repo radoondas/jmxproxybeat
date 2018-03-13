@@ -3,6 +3,7 @@
 package common
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 
@@ -35,7 +36,7 @@ func TestBytes_Ntohs(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		assert.Equal(t, test.Output, Bytes_Ntohs(test.Input))
+		assert.Equal(t, test.Output, BytesNtohs(test.Input))
 	}
 }
 
@@ -69,7 +70,7 @@ func TestBytes_Ntohl(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		assert.Equal(t, test.Output, Bytes_Ntohl(test.Input))
+		assert.Equal(t, test.Output, BytesNtohl(test.Input))
 	}
 }
 
@@ -103,7 +104,7 @@ func TestBytes_Htohl(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		assert.Equal(t, test.Output, Bytes_Htohl(test.Input))
+		assert.Equal(t, test.Output, BytesHtohl(test.Input))
 	}
 }
 
@@ -153,7 +154,7 @@ func TestBytes_Ntohll(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		assert.Equal(t, test.Output, Bytes_Ntohll(test.Input))
+		assert.Equal(t, test.Output, BytesNtohll(test.Input))
 	}
 }
 
@@ -179,7 +180,7 @@ func TestIpv4_Ntoa(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		assert.Equal(t, test.Output, Ipv4_Ntoa(test.Input))
+		assert.Equal(t, test.Output, IPv4Ntoa(test.Input))
 	}
 }
 
@@ -218,4 +219,23 @@ func TestReadString(t *testing.T) {
 		assert.Equal(t, test.Err, err)
 		assert.Equal(t, test.Output, res)
 	}
+}
+
+func TestRandomBytesLength(t *testing.T) {
+	r1, _ := RandomBytes(5)
+	assert.Equal(t, len(r1), 5)
+
+	r2, _ := RandomBytes(4)
+	assert.Equal(t, len(r2), 4)
+	assert.NotEqual(t, string(r1[:]), string(r2[:]))
+}
+
+func TestRandomBytes(t *testing.T) {
+	v1, err := RandomBytes(10)
+	assert.NoError(t, err)
+	v2, err := RandomBytes(10)
+	assert.NoError(t, err)
+
+	// unlikely to get 2 times the same results
+	assert.False(t, bytes.Equal(v1, v2))
 }

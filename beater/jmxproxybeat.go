@@ -8,7 +8,6 @@ import (
 	"github.com/elastic/beats/libbeat/beat"
 	"github.com/elastic/beats/libbeat/common"
 	"github.com/elastic/beats/libbeat/logp"
-	"github.com/elastic/beats/libbeat/publisher"
 
 	cfg "github.com/radoondas/jmxproxybeat/config"
 )
@@ -22,7 +21,7 @@ type Jmxproxybeat struct {
 	done   chan struct{}
 	hosts  []*url.URL
 	auth   bool
-	client publisher.Client
+	client beat.Client
 }
 
 // Creates beater
@@ -75,7 +74,12 @@ func (bt *Jmxproxybeat) init(b *beat.Beat) error {
 func (bt *Jmxproxybeat) Run(b *beat.Beat) error {
 	logp.Info("Jmxproxybeat is running! Hit CTRL-C to stop it.")
 
-	bt.client = b.Publisher.Connect()
+	var err error
+	bt.client, err = b.Publisher.Connect()
+	if err != nil {
+		return err
+	}
+
 	//for each url
 	for _, u := range bt.hosts {
 

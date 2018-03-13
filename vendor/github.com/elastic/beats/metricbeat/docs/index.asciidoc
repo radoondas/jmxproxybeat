@@ -1,53 +1,42 @@
 = Metricbeat Reference
 
-include::./version.asciidoc[]
+include::../../libbeat/docs/version.asciidoc[]
 
-:libbeat: http://www.elastic.co/guide/en/beats/libbeat/{doc-branch}
-:filebeat: http://www.elastic.co/guide/en/beats/filebeat/{doc-branch}
-:elasticsearch: https://www.elastic.co/guide/en/elasticsearch/reference/{doc-branch}
-:securitydoc: https://www.elastic.co/guide/en/x-pack/5.0
+include::{asciidoc-dir}/../../shared/attributes.asciidoc[]
+
 :version: {stack-version}
 :beatname_lc: metricbeat
 :beatname_uc: Metricbeat
-:security: X-Pack Security
+:beatname_pkg: {beatname_lc}
+
+include::../../libbeat/docs/shared-beats-attributes.asciidoc[]
 
 include::./overview.asciidoc[]
 
+include::../../libbeat/docs/contributing-to-beats.asciidoc[]
+
 include::./gettingstarted.asciidoc[]
 
-include::./command-line.asciidoc[]
+include::../../libbeat/docs/repositories.asciidoc[]
 
-include::../../libbeat/docs/shared-directory-layout.asciidoc[]
+include::./setting-up-running.asciidoc[]
 
 include::./upgrading.asciidoc[]
 
 include::./how-metricbeat-works.asciidoc[]
 
-include::./metricbeat-in-a-container.asciidoc[]
-
 include::./configuring-howto.asciidoc[]
-
-include::./metricbeat-filtering.asciidoc[]
-
-include::../../libbeat/docs/shared-config-ingest.asciidoc[]
-
-include::./configuring-logstash.asciidoc[]
-
-include::../../libbeat/docs/shared-env-vars.asciidoc[]
-
-:allplatforms:
-include::../../libbeat/docs/yaml.asciidoc[]
-
-include::../../libbeat/docs/regexp.asciidoc[]
 
 include::./modules.asciidoc[]
 
 include::./fields.asciidoc[]
 
+include::../../libbeat/docs/monitoring/monitoring-beats.asciidoc[]
+
 include::./securing-metricbeat.asciidoc[]
+
+include::../../libbeat/docs/security/securing-beats.asciidoc[]
 
 include::./troubleshooting.asciidoc[]
 
 include::./faq.asciidoc[]
-
-include::./developer-guide/index.asciidoc[]

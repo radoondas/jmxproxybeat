@@ -13,6 +13,11 @@ import (
 )
 
 var (
+	// ErrCgroupsMissing indicates the /proc/cgroups was not found. This means
+	// that cgroups were disabled at compile time (CONFIG_CGROUPS=n) or that
+	// an invalid rootfs path was given.
+	ErrCgroupsMissing = errors.New("cgroups not found or unsupported by OS")
+
 	// ErrInvalidFormat indicates a malformed key/value pair on a line.
 	ErrInvalidFormat = errors.New("error invalid key/value format")
 )
@@ -120,8 +125,12 @@ func SupportedSubsystems(rootfsMountpoint string) (map[string]struct{}, error) {
 
 	cgroups, err := os.Open(filepath.Join(rootfsMountpoint, "proc", "cgroups"))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrCgroupsMissing
+		}
 		return nil, err
 	}
+	defer cgroups.Close()
 
 	subsystemSet := map[string]struct{}{}
 	sc := bufio.NewScanner(cgroups)
@@ -133,16 +142,29 @@ func SupportedSubsystems(rootfsMountpoint string) (map[string]struct{}, error) {
 			continue
 		}
 
+		// Parse the cgroup subsystems.
+		// Format:  subsys_name    hierarchy      num_cgroups    enabled
+		// Example: cpuset         4              1              1
 		fields := strings.Fields(line)
 		if len(fields) == 0 {
 			continue
+		}
+
+		// Check the enabled flag.
+		if len(fields) > 3 {
+			enabled := fields[3]
+			if enabled == "0" {
+				// Ignore cgroup subsystems that are disabled (via the
+				// cgroup_disable kernel command-line boot parameter).
+				continue
+			}
 		}
 
 		subsystem := fields[0]
 		subsystemSet[subsystem] = struct{}{}
 	}
 
-	return subsystemSet, nil
+	return subsystemSet, sc.Err()
 }
 
 // SubsystemMountpoints returns the mountpoints for each of the given subsystems.
@@ -157,6 +179,7 @@ func SubsystemMountpoints(rootfsMountpoint string, subsystems map[string]struct{
 	if err != nil {
 		return nil, err
 	}
+	defer mountinfo.Close()
 
 	mounts := map[string]string{}
 	sc := bufio.NewScanner(mountinfo)
@@ -199,7 +222,7 @@ func SubsystemMountpoints(rootfsMountpoint string, subsystems map[string]struct{
 		}
 	}
 
-	return mounts, nil
+	return mounts, sc.Err()
 }
 
 // ProcessCgroupPaths returns the cgroups to which a process belongs and the
@@ -213,6 +236,7 @@ func ProcessCgroupPaths(rootfsMountpoint string, pid int) (map[string]string, er
 	if err != nil {
 		return nil, err
 	}
+	defer cgroup.Close()
 
 	paths := map[string]string{}
 	sc := bufio.NewScanner(cgroup)
@@ -235,5 +259,5 @@ func ProcessCgroupPaths(rootfsMountpoint string, pid int) (map[string]string, er
 		}
 	}
 
-	return paths, nil
+	return paths, sc.Err()
 }

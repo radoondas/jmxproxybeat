@@ -27,4 +27,8 @@ _testmain.go
 /Jmxproxybeat
 /jmxproxybeat.iml
 /.idea
-/build
+/build/
+/Tomcat/
+/work_dir/
+/data/
+/logs/

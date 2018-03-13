@@ -1,17 +1,19 @@
 package beater
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/tsg/gopacket/layers"
+
 	"github.com/elastic/beats/libbeat/beat"
 	"github.com/elastic/beats/libbeat/common"
-	"github.com/elastic/beats/libbeat/common/droppriv"
 	"github.com/elastic/beats/libbeat/logp"
+	"github.com/elastic/beats/libbeat/processors"
 	"github.com/elastic/beats/libbeat/service"
-	"github.com/tsg/gopacket/layers"
 
 	"github.com/elastic/beats/packetbeat/config"
 	"github.com/elastic/beats/packetbeat/decoder"
@@ -23,51 +25,51 @@ import (
 	"github.com/elastic/beats/packetbeat/protos/udp"
 	"github.com/elastic/beats/packetbeat/publish"
 	"github.com/elastic/beats/packetbeat/sniffer"
+
+	// Add packetbeat default processors
+	_ "github.com/elastic/beats/packetbeat/processor/add_kubernetes_metadata"
 )
 
 // Beater object. Contains all objects needed to run the beat
-type Packetbeat struct {
-	Config      config.Config
-	CmdLineArgs CmdLineArgs
-	Pub         *publish.PacketbeatPublisher
-	Sniff       *sniffer.SnifferSetup
+type packetbeat struct {
+	config      config.Config
+	cmdLineArgs flags
+	sniff       *sniffer.Sniffer
 
-	services []interface {
-		Start()
-		Stop()
-	}
+	// publisher/pipeline
+	pipeline beat.Pipeline
+	transPub *publish.TransactionPublisher
+	flows    *flows.Flows
 }
 
-type CmdLineArgs struct {
-	File         *string
-	Loop         *int
-	OneAtAtime   *bool
-	TopSpeed     *bool
-	Dumpfile     *string
-	WaitShutdown *int
+type flags struct {
+	file       *string
+	loop       *int
+	oneAtAtime *bool
+	topSpeed   *bool
+	dumpfile   *string
 }
 
-var cmdLineArgs CmdLineArgs
+var cmdLineArgs flags
 
 func init() {
-	cmdLineArgs = CmdLineArgs{
-		File:         flag.String("I", "", "Read packet data from specified file"),
-		Loop:         flag.Int("l", 1, "Loop file. 0 - loop forever"),
-		OneAtAtime:   flag.Bool("O", false, "Read packets one at a time (press Enter)"),
-		TopSpeed:     flag.Bool("t", false, "Read packets as fast as possible, without sleeping"),
-		Dumpfile:     flag.String("dump", "", "Write all captured packets to this libpcap file"),
-		WaitShutdown: flag.Int("waitstop", 0, "Additional seconds to wait before shutting down"),
+	cmdLineArgs = flags{
+		file:       flag.String("I", "", "Read packet data from specified file"),
+		loop:       flag.Int("l", 1, "Loop file. 0 - loop forever"),
+		oneAtAtime: flag.Bool("O", false, "Read packets one at a time (press Enter)"),
+		topSpeed:   flag.Bool("t", false, "Read packets as fast as possible, without sleeping"),
+		dumpfile:   flag.String("dump", "", "Write all captured packets to this libpcap file"),
 	}
 }
 
 func New(b *beat.Beat, rawConfig *common.Config) (beat.Beater, error) {
 	config := config.Config{
 		Interfaces: config.InterfacesConfig{
-			File:       *cmdLineArgs.File,
-			Loop:       *cmdLineArgs.Loop,
-			TopSpeed:   *cmdLineArgs.TopSpeed,
-			OneAtATime: *cmdLineArgs.OneAtAtime,
-			Dumpfile:   *cmdLineArgs.Dumpfile,
+			File:       *cmdLineArgs.file,
+			Loop:       *cmdLineArgs.loop,
+			TopSpeed:   *cmdLineArgs.topSpeed,
+			OneAtATime: *cmdLineArgs.oneAtAtime,
+			Dumpfile:   *cmdLineArgs.dumpfile,
 		},
 	}
 	err := rawConfig.Unpack(&config)
@@ -76,9 +78,9 @@ func New(b *beat.Beat, rawConfig *common.Config) (beat.Beater, error) {
 		return nil, err
 	}
 
-	pb := &Packetbeat{
-		Config:      config,
-		CmdLineArgs: cmdLineArgs,
+	pb := &packetbeat{
+		config:      config,
+		cmdLineArgs: cmdLineArgs,
 	}
 	err = pb.init(b)
 	if err != nil {
@@ -89,60 +91,104 @@ func New(b *beat.Beat, rawConfig *common.Config) (beat.Beater, error) {
 }
 
 // init packetbeat components
-func (pb *Packetbeat) init(b *beat.Beat) error {
-
-	cfg := &pb.Config
+func (pb *packetbeat) init(b *beat.Beat) error {
+	cfg := &pb.config
 	err := procs.ProcWatcher.Init(cfg.Procs)
 	if err != nil {
 		logp.Critical(err.Error())
 		return err
 	}
 
-	// This is required as init Beat is called before the beat publisher is initialised
-	b.Config.Shipper.InitShipperConfig()
-
-	pb.Pub, err = publish.NewPublisher(b.Publisher, *b.Config.Shipper.QueueSize, *b.Config.Shipper.BulkQueueSize, pb.Config.IgnoreOutgoing)
+	pb.pipeline = b.Publisher
+	pb.transPub, err = publish.NewTransactionPublisher(
+		b.Info.Name,
+		b.Publisher,
+		pb.config.IgnoreOutgoing,
+		pb.config.Interfaces.File == "",
+	)
 	if err != nil {
-		return fmt.Errorf("Initializing publisher failed: %v", err)
+		return err
 	}
 
 	logp.Debug("main", "Initializing protocol plugins")
-	err = protos.Protos.Init(false, pb.Pub, cfg.Protocols)
+	err = protos.Protos.Init(false, pb.transPub, cfg.Protocols, cfg.ProtocolsList)
 	if err != nil {
 		return fmt.Errorf("Initializing protocol analyzers failed: %v", err)
 	}
 
-	logp.Debug("main", "Initializing sniffer")
-	err = pb.setupSniffer()
+	if err := pb.setupFlows(); err != nil {
+		return err
+	}
+
+	return pb.setupSniffer()
+}
+
+func (pb *packetbeat) setupSniffer() error {
+	config := &pb.config
+
+	icmp, err := pb.icmpConfig()
 	if err != nil {
-		return fmt.Errorf("Initializing sniffer failed: %v", err)
+		return err
+	}
+
+	withVlans := config.Interfaces.WithVlans
+	withICMP := icmp.Enabled()
+
+	filter := config.Interfaces.BpfFilter
+	if filter == "" && !config.Flows.IsEnabled() {
+		filter = protos.Protos.BpfFilter(withVlans, withICMP)
+	}
+
+	pb.sniff, err = sniffer.New(false, filter, pb.createWorker, config.Interfaces)
+	return err
+}
+
+func (pb *packetbeat) setupFlows() error {
+	config := &pb.config
+	if !config.Flows.IsEnabled() {
+		return nil
+	}
+
+	processors, err := processors.New(config.Flows.Processors)
+	if err != nil {
+		return err
+	}
+
+	client, err := pb.pipeline.ConnectWith(beat.ClientConfig{
+		EventMetadata: config.Flows.EventMetadata,
+		Processor:     processors,
+	})
+	if err != nil {
+		return err
+	}
+
+	pb.flows, err = flows.NewFlows(client.PublishAll, config.Flows)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func (pb *Packetbeat) Run(b *beat.Beat) error {
+func (pb *packetbeat) Run(b *beat.Beat) error {
 	defer func() {
-		if service.WithMemProfile() {
+		if service.ProfileEnabled() {
 			logp.Debug("main", "Waiting for streams and transactions to expire...")
 			time.Sleep(time.Duration(float64(protos.DefaultTransactionExpiration) * 1.2))
 			logp.Debug("main", "Streams and transactions should all be expired now.")
 		}
-
-		// TODO:
-		// pb.TransPub.Stop()
 	}()
 
-	pb.Pub.Start()
+	defer pb.transPub.Stop()
 
-	// This needs to be after the sniffer Init but before the sniffer Run.
-	if err := droppriv.DropPrivileges(pb.Config.RunOptions); err != nil {
-		return err
+	timeout := pb.config.ShutdownTimeout
+	if timeout > 0 {
+		defer time.Sleep(timeout)
 	}
 
-	// start services
-	for _, service := range pb.services {
-		service.Start()
+	if pb.flows != nil {
+		pb.flows.Start()
+		defer pb.flows.Stop()
 	}
 
 	var wg sync.WaitGroup
@@ -152,7 +198,8 @@ func (pb *Packetbeat) Run(b *beat.Beat) error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err := pb.Sniff.Run()
+
+		err := pb.sniff.Run()
 		if err != nil {
 			errC <- fmt.Errorf("Sniffer main loop failed: %v", err)
 		}
@@ -166,57 +213,29 @@ func (pb *Packetbeat) Run(b *beat.Beat) error {
 		return err
 	}
 
-	// kill services
-	for _, service := range pb.services {
-		service.Stop()
-	}
-
-	waitShutdown := pb.CmdLineArgs.WaitShutdown
-	if waitShutdown != nil && *waitShutdown > 0 {
-		time.Sleep(time.Duration(*waitShutdown) * time.Second)
-	}
-
 	return nil
 }
 
 // Called by the Beat stop function
-func (pb *Packetbeat) Stop() {
+func (pb *packetbeat) Stop() {
 	logp.Info("Packetbeat send stop signal")
-	pb.Sniff.Stop()
-	pb.Pub.Stop()
+	pb.sniff.Stop()
 }
 
-func (pb *Packetbeat) setupSniffer() error {
-	config := &pb.Config
-
-	withVlans := config.Interfaces.With_vlans
-	withICMP := config.Protocols["icmp"].Enabled()
-
-	filter := config.Interfaces.Bpf_filter
-	if filter == "" && !config.Flows.IsEnabled() {
-		filter = protos.Protos.BpfFilter(withVlans, withICMP)
+func (pb *packetbeat) createWorker(dl layers.LinkType) (sniffer.Worker, error) {
+	var icmp4 icmp.ICMPv4Processor
+	var icmp6 icmp.ICMPv6Processor
+	cfg, err := pb.icmpConfig()
+	if err != nil {
+		return nil, err
 	}
-
-	pb.Sniff = &sniffer.SnifferSetup{}
-	return pb.Sniff.Init(false, filter, pb.createWorker, &config.Interfaces)
-}
-
-func (pb *Packetbeat) createWorker(dl layers.LinkType) (sniffer.Worker, error) {
-	var f *flows.Flows
-	var err error
-	config := &pb.Config
-
-	if config.Flows.IsEnabled() {
-		f, err = flows.NewFlows(pb.Pub, config.Flows)
+	if cfg.Enabled() {
+		reporter, err := pb.transPub.CreateReporter(cfg)
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	var icmp4 icmp.ICMPv4Processor
-	var icmp6 icmp.ICMPv6Processor
-	if cfg := config.Protocols["icmp"]; cfg.Enabled() {
-		icmp, err := icmp.New(false, pb.Pub, cfg)
+		icmp, err := icmp.New(false, reporter, cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -225,23 +244,49 @@ func (pb *Packetbeat) createWorker(dl layers.LinkType) (sniffer.Worker, error) {
 		icmp6 = icmp
 	}
 
-	tcp, err := tcp.NewTcp(&protos.Protos)
+	tcp, err := tcp.NewTCP(&protos.Protos)
 	if err != nil {
 		return nil, err
 	}
 
-	udp, err := udp.NewUdp(&protos.Protos)
+	udp, err := udp.NewUDP(&protos.Protos)
 	if err != nil {
 		return nil, err
 	}
 
-	worker, err := decoder.NewDecoder(f, dl, icmp4, icmp6, tcp, udp)
+	worker, err := decoder.New(pb.flows, dl, icmp4, icmp6, tcp, udp)
 	if err != nil {
 		return nil, err
 	}
 
-	if f != nil {
-		pb.services = append(pb.services, f)
-	}
 	return worker, nil
+}
+
+func (pb *packetbeat) icmpConfig() (*common.Config, error) {
+	var icmp *common.Config
+	if pb.config.Protocols["icmp"].Enabled() {
+		icmp = pb.config.Protocols["icmp"]
+	}
+
+	for _, cfg := range pb.config.ProtocolsList {
+		info := struct {
+			Type string `config:"type" validate:"required"`
+		}{}
+
+		if err := cfg.Unpack(&info); err != nil {
+			return nil, err
+		}
+
+		if info.Type != "icmp" {
+			continue
+		}
+
+		if icmp != nil {
+			return nil, errors.New("More then one icmp confgigurations found")
+		}
+
+		icmp = cfg
+	}
+
+	return icmp, nil
 }

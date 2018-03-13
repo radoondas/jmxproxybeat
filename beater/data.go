@@ -16,6 +16,7 @@ import (
 
 	"github.com/elastic/beats/libbeat/common"
 	"github.com/elastic/beats/libbeat/logp"
+	"github.com/elastic/beats/libbeat/beat"
 )
 
 const (
@@ -130,18 +131,20 @@ func (bt *Jmxproxybeat) GetJMXObject(u url.URL, name, attribute, key string, CAF
 		return err
 	}
 
-	event := common.MapStr{
-		"@timestamp": common.Time(time.Now()),
-		"type":       "jmx",
-		"bean": common.MapStr{
-			"name":      name,
-			"attribute": jmxAttribute,
-			"value":     jmxValue,
-			"hostname":  u.Host,
+	event := beat.Event{
+		Timestamp: time.Now(),
+		Fields: common.MapStr{
+			"bean": common.MapStr{
+				"name":      name,
+				"attribute": jmxAttribute,
+				"value":     jmxValue,
+				"hostname":  u.Host,
+			},
 		},
 	}
-	bt.client.PublishEvent(event)
+	bt.client.Publish(event)
 	logp.Info("Event: %+v", event)
+	//logp.NewLogger()Info("Event: %+v", event)
 
 	return nil
 }

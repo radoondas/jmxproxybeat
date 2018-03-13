@@ -13,6 +13,7 @@ Contains tests for reading from the Event Logging API (pre MS Vista).
 
 @unittest.skipUnless(sys.platform.startswith("win"), "requires Windows")
 class Test(WriteReadTest):
+
     @classmethod
     def setUpClass(self):
         self.api = "eventlogging"
@@ -168,3 +169,17 @@ class Test(WriteReadTest):
         })
         self.assertTrue(len(evts), 1)
         self.assertEqual(evts[0]["message"], msg)
+
+    def test_registry_data(self):
+        """
+        eventlogging - Registry is updated
+        """
+        self.write_event_log("Hello world!")
+        evts = self.read_events()
+        self.assertTrue(len(evts), 1)
+
+        event_logs = self.read_registry()
+        self.assertTrue(len(event_logs.keys()), 1)
+        self.assertIn(self.providerName, event_logs)
+        record_number = event_logs[self.providerName]["record_number"]
+        self.assertGreater(record_number, 0)

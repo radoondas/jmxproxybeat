@@ -1,0 +1,170 @@
+################### Jmxproxybeat Configuration Example #########################
+
+############################# Jmxproxybeat ######################################
+
+jmxproxybeat:
+  # Defines how often an event is sent to the output
+  period: 10s
+
+  # Defines list of sockets where Tomcat listen.
+  hosts: ["http://127.0.0.1:8080"]
+
+  # Defines authentication for Tomcat's manager servlet
+  authentication:
+    username: "tomcat"
+    password: "s3cret"
+
+  # Defines SSL configuration.
+  #ssl:
+    #cafile: "/path/to/ca/CA.pem"
+
+  beans:
+    - bean:
+      name: java.lang:type=Memory
+      attributes:
+        - attribute:
+          name: HeapMemoryUsage
+        - attribute:
+          name: NonHeapMemoryUsage
+      keys:
+        - committed
+        - init
+        - max
+        - used
+    - bean:
+      name: java.lang:type=Runtime
+      attributes:
+        - attribute:
+          name: Uptime
+        - attribute:
+          name: StartTime
+    - bean:
+      name: java.lang:type=Threading
+      attributes:
+        - attribute:
+          name: CurrentThreadCpuTime
+        - attribute:
+          name: CurrentThreadUserTime
+        - attribute:
+          name: DaemonThreadCount
+        - attribute:
+          name: ThreadCount
+        - attribute:
+          name: TotalStartedThreadCount
+        - attribute:
+          name: PeakThreadCount
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=PS Scavenge
+#      attributes:
+#        - attribute:
+#          name: CollectionCount
+#        - attribute:
+#          name: CollectionTime
+#        - attribute:
+#          name: LastGcInfo
+#          keys:
+#            - GcThreadCount
+#            - duration
+#            - endTime
+#            - id
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=PS MarkSweep
+#      attributes:
+#        - attribute:
+#          name: CollectionCount
+#        - attribute:
+#          name: CollectionTime
+#        - attribute:
+#          name: LastGcInfo
+#          keys:
+#            - GcThreadCount
+#            - duration
+#            - endTime
+#            - id
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=ConcurrentMarkSweep
+#      attributes:
+#        - attribute:
+#           name: CollectionCount
+#        - attribute:
+#           name: CollectionTime
+#        - attribute:
+#          name: LastGcInfo
+#          keys:
+#            - GcThreadCount
+#            - duration
+#            - endTime
+#            - id
+#    - bean:
+#      name: java.lang:type=GarbageCollector,name=ParNew
+#      attributes:
+#        - attribute:
+#           name: CollectionCount
+#        - attribute:
+#           name: CollectionTime
+#        - attribute:
+#          name: LastGcInfo
+#          keys:
+#            - GcThreadCount
+#            - duration
+#            - endTime
+#            - id
+#    - bean:
+#      name: java.lang:type=ClassLoading
+#      attributes:
+#        - attribute:
+#          name: LoadedClassCount
+#        - attribute:
+#          name: TotalLoadedClassCount
+#        - attribute:
+#          name: UnloadedClassCount
+#    - bean:
+#      name: java.lang:type=OperatingSystem
+#      attributes:
+#        - attribute:
+#          name: AvailableProcessors
+#        - attribute:
+#          name: CommittedVirtualMemorySize
+#        - attribute:
+#          name: FreePhysicalMemorySize
+#        - attribute:
+#          name: FreeSwapSpaceSize
+#        - attribute:
+#          name: MaxFileDescriptorCount
+#        - attribute:
+#          name: OpenFileDescriptorCount
+#        - attribute:
+#          name: ProcessCpuLoad
+#        - attribute:
+#          name: ProcessCpuTime
+#        - attribute:
+#          name: SystemCpuLoad
+#        - attribute:
+#          name: SystemLoadAverage
+#        - attribute:
+#          name: TotalPhysicalMemorySize
+#        - attribute:
+#          name: TotalSwapSpaceSize
+#    - bean:
+#      name: java.nio:type=BufferPool,name=direct
+#      attributes:
+#        - attribute:
+#          name: Count
+#        - attribute:
+#          name: MemoryUsed
+#        - attribute:
+#          name: TotalCapacity
+#    - bean:
+#      name: java.nio:type=BufferPool,name=mapped
+#      attributes:
+#        - attribute:
+#          name: Count
+#        - attribute:
+#          name: MemoryUsed
+#        - attribute:
+#          name: TotalCapacity
+#    - bean:
+#      name: java.lang:type=Compilation
+#      attributes:
+#        - attribute:
+#          name: TotalCompilationTime

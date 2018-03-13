@@ -1,0 +1,55 @@
+################### Jmxproxybeat Configuration Example #########################
+
+############################# Jmxproxybeat ######################################
+
+jmxproxybeat:
+  # Defines how often an event is sent to the output
+  period: 10s
+
+  # Defines list of sockets where Tomcat listen.
+  hosts: ["http://127.0.0.1:8080"]
+
+  # Defines authentication for Tomcat's manager servlet
+  authentication:
+    username: "tomcat"
+    password: "s3cret"
+
+  # Defines SSL configuration.
+  #ssl:
+    #cafile: "/path/to/ca/CA.pem"
+
+  beans:
+    - bean:
+      name: java.lang:type=Memory
+      attributes:
+        - attribute:
+          name: HeapMemoryUsage
+        - attribute:
+          name: NonHeapMemoryUsage
+      keys:
+        - committed
+        - init
+        - max
+        - used
+    - bean:
+      name: java.lang:type=Runtime
+      attributes:
+        - attribute:
+          name: Uptime
+        - attribute:
+          name: StartTime
+    - bean:
+      name: java.lang:type=Threading
+      attributes:
+        - attribute:
+          name: CurrentThreadCpuTime
+        - attribute:
+          name: CurrentThreadUserTime
+        - attribute:
+          name: DaemonThreadCount
+        - attribute:
+          name: ThreadCount
+        - attribute:
+          name: TotalStartedThreadCount
+        - attribute:
+          name: PeakThreadCount

@@ -5,13 +5,17 @@ package status
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/elastic/beats/libbeat/common"
+	"github.com/elastic/beats/libbeat/tests/compose"
 	mbtest "github.com/elastic/beats/metricbeat/mb/testing"
 	"github.com/elastic/beats/metricbeat/module/mongodb"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestFetch(t *testing.T) {
+	compose.EnsureUp(t, "mongodb")
+
 	f := mbtest.NewEventFetcher(t, getConfig())
 	event, err := f.Fetch()
 	if !assert.NoError(t, err) {
@@ -27,11 +31,13 @@ func TestFetch(t *testing.T) {
 	available := event["connections"].(common.MapStr)["available"].(int64)
 	assert.True(t, available > 0)
 
-	commits := event["journaling"].(common.MapStr)["commits"].(int64)
-	assert.True(t, commits >= 0)
+	pageFaults := event["extra_info"].(common.MapStr)["page_faults"].(int64)
+	assert.True(t, pageFaults >= 0)
 }
 
 func TestData(t *testing.T) {
+	compose.EnsureUp(t, "mongodb")
+
 	f := mbtest.NewEventFetcher(t, getConfig())
 	err := mbtest.WriteEvent(f, t)
 	if err != nil {

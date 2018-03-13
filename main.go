@@ -3,17 +3,14 @@ package main
 import (
 	"os"
 
-	"github.com/elastic/beats/libbeat/beat"
-
-	"github.com/radoondas/jmxproxybeat/beater"
+	"github.com/radoondas/jmxproxybeat/cmd"
 )
 
 // Name of this Beat.
 var Name = "jmxproxybeat"
 
 func main() {
-	err := beat.Run(Name, "", beater.New)
-	if err != nil {
+	if err := cmd.RootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }

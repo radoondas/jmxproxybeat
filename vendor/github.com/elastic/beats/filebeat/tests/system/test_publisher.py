@@ -23,7 +23,6 @@ class Test(BaseTest):
 
         self.render_config_template(
             path=os.path.abspath(self.working_dir) + "/log/*",
-            publish_async=True
         )
         os.mkdir(self.working_dir + "/log/")
 
@@ -34,7 +33,7 @@ class Test(BaseTest):
 
         iterations = 5
         for n in range(0, iterations):
-            file.write("line " + str(n+1))
+            file.write("line " + str(n + 1))
             file.write("\n")
 
         file.close()
@@ -48,8 +47,8 @@ class Test(BaseTest):
 
         # Wait until registry file is written
         self.wait_until(
-            lambda: self.log_contains(
-                "Registry file updated."),
+            lambda: self.log_contains_count(
+                "Registry file updated.") > 1,
             max_timeout=15)
 
         filebeat.check_kill_and_wait()
@@ -57,4 +56,3 @@ class Test(BaseTest):
         data = self.get_registry()
         assert len(data) == 1
         assert self.output_has(lines=iterations)
-

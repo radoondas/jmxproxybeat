@@ -2,48 +2,15 @@
 package elasticsearch
 
 import (
-	"os"
+	"encoding/json"
 	"testing"
 	"time"
 
-	"github.com/elastic/beats/libbeat/outputs/outil"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/elastic/beats/libbeat/logp"
+	"github.com/elastic/beats/libbeat/outputs/outil"
 )
-
-const ElasticsearchDefaultHost = "localhost"
-const ElasticsearchDefaultPort = "9200"
-
-func GetEsPort() string {
-	port := os.Getenv("ES_PORT")
-
-	if len(port) == 0 {
-		port = ElasticsearchDefaultPort
-	}
-	return port
-}
-
-// Returns
-func GetEsHost() string {
-
-	host := os.Getenv("ES_HOST")
-
-	if len(host) == 0 {
-		host = ElasticsearchDefaultHost
-	}
-
-	return host
-}
-
-func GetTestingElasticsearch() *Client {
-	var address = "http://" + GetEsHost() + ":" + GetEsPort()
-	username := os.Getenv("ES_USER")
-	pass := os.Getenv("ES_PASS")
-	client := newTestClientAuth(address, username, pass)
-
-	// Load version number
-	client.Connect(3 * time.Second)
-	return client
-}
 
 func GetValidQueryResult() QueryResult {
 	result := QueryResult{
@@ -74,7 +41,6 @@ func GetValidQueryResult() QueryResult {
 }
 
 func GetValidSearchResults() SearchResults {
-
 	hits := Hits{
 		Total: 0,
 		Hits:  nil,
@@ -95,7 +61,6 @@ func GetValidSearchResults() SearchResults {
 }
 
 func TestReadQueryResult(t *testing.T) {
-
 	queryResult := GetValidQueryResult()
 
 	json := queryResult.Source
@@ -121,7 +86,6 @@ func TestReadQueryResult_empty(t *testing.T) {
 
 // Check invalid query result object
 func TestReadQueryResult_invalid(t *testing.T) {
-
 	// Invalid json string
 	json := []byte(`{"name":"ruflin","234"}`)
 
@@ -160,7 +124,6 @@ func TestReadSearchResult_empty(t *testing.T) {
 }
 
 func TestReadSearchResult_invalid(t *testing.T) {
-
 	// Invalid json string
 	json := []byte(`{"took":"19","234"}`)
 
@@ -170,15 +133,9 @@ func TestReadSearchResult_invalid(t *testing.T) {
 }
 
 func newTestClient(url string) *Client {
-	return newTestClientAuth(url, "", "")
-}
-
-func newTestClientAuth(url, user, pass string) *Client {
 	client, err := NewClient(ClientSettings{
 		URL:              url,
 		Index:            outil.MakeSelector(),
-		Username:         user,
-		Password:         pass,
 		Timeout:          60 * time.Second,
 		CompressionLevel: 3,
 	}, nil)
@@ -186,4 +143,13 @@ func newTestClientAuth(url, user, pass string) *Client {
 		panic(err)
 	}
 	return client
+}
+
+func (r QueryResult) String() string {
+	out, err := json.Marshal(r)
+	if err != nil {
+		logp.Warn("failed to marshal QueryResult (%v): %#v", err, r)
+		return "ERROR"
+	}
+	return string(out)
 }

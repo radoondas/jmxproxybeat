@@ -2,26 +2,30 @@ package processors_test
 
 import (
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
+
+	"github.com/elastic/beats/libbeat/beat"
 	"github.com/elastic/beats/libbeat/common"
 	"github.com/elastic/beats/libbeat/logp"
 	"github.com/elastic/beats/libbeat/processors"
+
 	_ "github.com/elastic/beats/libbeat/processors/actions"
-	"github.com/stretchr/testify/assert"
+	_ "github.com/elastic/beats/libbeat/processors/add_cloud_metadata"
 )
 
 func GetProcessors(t *testing.T, yml []map[string]interface{}) *processors.Processors {
-
 	config := processors.PluginConfig{}
 
 	for _, action := range yml {
-		c := map[string]common.Config{}
+		c := map[string]*common.Config{}
 
 		for name, actionYml := range action {
 			actionConfig, err := common.NewConfigFrom(actionYml)
 			assert.Nil(t, err)
 
-			c[name] = *actionConfig
+			c[name] = actionConfig
 		}
 		config = append(config, c)
 
@@ -31,17 +35,13 @@ func GetProcessors(t *testing.T, yml []map[string]interface{}) *processors.Proce
 	assert.Nil(t, err)
 
 	return list
-
 }
 
 func TestBadConfig(t *testing.T) {
-
-	if testing.Verbose() {
-		logp.LogInit(logp.LOG_DEBUG, "", false, true, []string{"*"})
-	}
+	logp.TestingSetup()
 
 	yml := []map[string]interface{}{
-		map[string]interface{}{
+		{
 			"include_fields": map[string]interface{}{
 				"when": map[string]interface{}{
 					"contains": map[string]string{
@@ -59,30 +59,26 @@ func TestBadConfig(t *testing.T) {
 	config := processors.PluginConfig{}
 
 	for _, action := range yml {
-		c := map[string]common.Config{}
+		c := map[string]*common.Config{}
 
 		for name, actionYml := range action {
 			actionConfig, err := common.NewConfigFrom(actionYml)
 			assert.Nil(t, err)
 
-			c[name] = *actionConfig
+			c[name] = actionConfig
 		}
 		config = append(config, c)
 	}
 
 	_, err := processors.New(config)
 	assert.NotNil(t, err)
-
 }
 
 func TestIncludeFields(t *testing.T) {
-
-	if testing.Verbose() {
-		logp.LogInit(logp.LOG_DEBUG, "", false, true, []string{"*"})
-	}
+	logp.TestingSetup()
 
 	yml := []map[string]interface{}{
-		map[string]interface{}{
+		{
 			"include_fields": map[string]interface{}{
 				"when": map[string]interface{}{
 					"contains": map[string]string{
@@ -96,36 +92,37 @@ func TestIncludeFields(t *testing.T) {
 
 	processors := GetProcessors(t, yml)
 
-	event := common.MapStr{
-		"@timestamp": "2016-01-24T18:35:19.308Z",
-		"beat": common.MapStr{
-			"hostname": "mar",
-			"name":     "my-shipper-1",
-		},
-		"proc": common.MapStr{
-			"cpu": common.MapStr{
-				"start_time": "Jan14",
-				"system":     26027,
-				"total":      79390,
-				"total_p":    0,
-				"user":       53363,
+	event := &beat.Event{
+		Timestamp: time.Now(),
+		Fields: common.MapStr{
+			"beat": common.MapStr{
+				"hostname": "mar",
+				"name":     "my-shipper-1",
 			},
-			"name":    "test-1",
-			"cmdline": "/sbin/launchd",
-			"mem": common.MapStr{
-				"rss":   11194368,
-				"rss_p": 0,
-				"share": 0,
-				"size":  2555572224,
+			"proc": common.MapStr{
+				"cpu": common.MapStr{
+					"start_time": "Jan14",
+					"system":     26027,
+					"total":      79390,
+					"total_p":    0,
+					"user":       53363,
+				},
+				"name":    "test-1",
+				"cmdline": "/sbin/launchd",
+				"mem": common.MapStr{
+					"rss":   11194368,
+					"rss_p": 0,
+					"share": 0,
+					"size":  int64(2555572224),
+				},
 			},
+			"type": "process",
 		},
-		"type": "process",
 	}
 
 	processedEvent := processors.Run(event)
 
 	expectedEvent := common.MapStr{
-		"@timestamp": "2016-01-24T18:35:19.308Z",
 		"proc": common.MapStr{
 			"cpu": common.MapStr{
 				"total_p": 0,
@@ -134,23 +131,20 @@ func TestIncludeFields(t *testing.T) {
 				"rss":   11194368,
 				"rss_p": 0,
 				"share": 0,
-				"size":  2555572224,
+				"size":  int64(2555572224),
 			},
 		},
 		"type": "process",
 	}
 
-	assert.Equal(t, expectedEvent, processedEvent)
+	assert.Equal(t, expectedEvent, processedEvent.Fields)
 }
 
 func TestIncludeFields1(t *testing.T) {
-
-	if testing.Verbose() {
-		logp.LogInit(logp.LOG_DEBUG, "", false, true, []string{"*"})
-	}
+	logp.TestingSetup()
 
 	yml := []map[string]interface{}{
-		map[string]interface{}{
+		{
 			"include_fields": map[string]interface{}{
 				"when": map[string]interface{}{
 					"regexp": map[string]string{
@@ -164,46 +158,46 @@ func TestIncludeFields1(t *testing.T) {
 
 	processors := GetProcessors(t, yml)
 
-	event := common.MapStr{
-		"@timestamp": "2016-01-24T18:35:19.308Z",
-		"beat": common.MapStr{
-			"hostname": "mar",
-			"name":     "my-shipper-1",
-		},
+	event := &beat.Event{
+		Timestamp: time.Now(),
+		Fields: common.MapStr{
+			"beat": common.MapStr{
+				"hostname": "mar",
+				"name":     "my-shipper-1",
+			},
 
-		"proc": common.MapStr{
-			"cpu": common.MapStr{
-				"start_time": "Jan14",
-				"system":     26027,
-				"total":      79390,
-				"total_p":    0,
-				"user":       53363,
+			"proc": common.MapStr{
+				"cpu": common.MapStr{
+					"start_time": "Jan14",
+					"system":     26027,
+					"total":      79390,
+					"total_p":    0,
+					"user":       53363,
+				},
+				"cmdline": "/sbin/launchd",
+				"mem": common.MapStr{
+					"rss":   11194368,
+					"rss_p": 0,
+					"share": 0,
+					"size":  int64(2555572224),
+				},
 			},
-			"cmdline": "/sbin/launchd",
-			"mem": common.MapStr{
-				"rss":   11194368,
-				"rss_p": 0,
-				"share": 0,
-				"size":  2555572224,
-			},
+			"type": "process",
 		},
-		"type": "process",
 	}
 
 	processedEvent := processors.Run(event)
 
 	expectedEvent := common.MapStr{
-		"@timestamp": "2016-01-24T18:35:19.308Z",
-		"type":       "process",
+		"type": "process",
 	}
 
-	assert.Equal(t, expectedEvent, processedEvent)
+	assert.Equal(t, expectedEvent, processedEvent.Fields)
 }
 
 func TestDropFields(t *testing.T) {
-
 	yml := []map[string]interface{}{
-		map[string]interface{}{
+		{
 			"drop_fields": map[string]interface{}{
 				"when": map[string]interface{}{
 					"equals": map[string]string{
@@ -217,36 +211,37 @@ func TestDropFields(t *testing.T) {
 
 	processors := GetProcessors(t, yml)
 
-	event := common.MapStr{
-		"@timestamp": "2016-01-24T18:35:19.308Z",
-		"beat": common.MapStr{
-			"hostname": "mar",
-			"name":     "my-shipper-1",
-		},
-
-		"proc": common.MapStr{
-			"cpu": common.MapStr{
-				"start_time": "Jan14",
-				"system":     26027,
-				"total":      79390,
-				"total_p":    0,
-				"user":       53363,
+	event := &beat.Event{
+		Timestamp: time.Now(),
+		Fields: common.MapStr{
+			"beat": common.MapStr{
+				"hostname": "mar",
+				"name":     "my-shipper-1",
 			},
-			"cmdline": "/sbin/launchd",
+
+			"proc": common.MapStr{
+				"cpu": common.MapStr{
+					"start_time": "Jan14",
+					"system":     26027,
+					"total":      79390,
+					"total_p":    0,
+					"user":       53363,
+				},
+				"cmdline": "/sbin/launchd",
+			},
+			"mem": common.MapStr{
+				"rss":   11194368,
+				"rss_p": 0,
+				"share": 0,
+				"size":  int64(2555572224),
+			},
+			"type": "process",
 		},
-		"mem": common.MapStr{
-			"rss":   11194368,
-			"rss_p": 0,
-			"share": 0,
-			"size":  2555572224,
-		},
-		"type": "process",
 	}
 
 	processedEvent := processors.Run(event)
 
 	expectedEvent := common.MapStr{
-		"@timestamp": "2016-01-24T18:35:19.308Z",
 		"proc": common.MapStr{
 			"cpu": common.MapStr{
 				"system":  26027,
@@ -258,17 +253,14 @@ func TestDropFields(t *testing.T) {
 		"type": "process",
 	}
 
-	assert.Equal(t, expectedEvent, processedEvent)
+	assert.Equal(t, expectedEvent, processedEvent.Fields)
 }
 
 func TestMultipleIncludeFields(t *testing.T) {
-
-	if testing.Verbose() {
-		logp.LogInit(logp.LOG_DEBUG, "", false, true, []string{"*"})
-	}
+	logp.TestingSetup()
 
 	yml := []map[string]interface{}{
-		map[string]interface{}{
+		{
 			"include_fields": map[string]interface{}{
 				"when": map[string]interface{}{
 					"contains": map[string]string{
@@ -278,7 +270,7 @@ func TestMultipleIncludeFields(t *testing.T) {
 				"fields": []string{"proc"},
 			},
 		},
-		map[string]interface{}{
+		{
 			"include_fields": map[string]interface{}{
 				"fields": []string{"proc.cpu.start_time", "proc.cpu.total_p", "proc.mem.rss_p", "proc.cmdline"},
 			},
@@ -287,54 +279,58 @@ func TestMultipleIncludeFields(t *testing.T) {
 
 	processors := GetProcessors(t, yml)
 
-	event1 := common.MapStr{
-		"@timestamp": "2016-01-24T18:35:19.308Z",
-		"beat": common.MapStr{
-			"hostname": "mar",
-			"name":     "my-shipper-1",
-		},
-
-		"proc": common.MapStr{
-			"cpu": common.MapStr{
-				"start_time": "Jan14",
-				"system":     26027,
-				"total":      79390,
-				"total_p":    0,
-				"user":       53363,
+	event1 := &beat.Event{
+		Timestamp: time.Now(),
+		Fields: common.MapStr{
+			"@timestamp": "2016-01-24T18:35:19.308Z",
+			"beat": common.MapStr{
+				"hostname": "mar",
+				"name":     "my-shipper-1",
 			},
-			"cmdline": "/sbin/launchd",
+
+			"proc": common.MapStr{
+				"cpu": common.MapStr{
+					"start_time": "Jan14",
+					"system":     26027,
+					"total":      79390,
+					"total_p":    0,
+					"user":       53363,
+				},
+				"cmdline": "/sbin/launchd",
+			},
+			"mem": common.MapStr{
+				"rss":   11194368,
+				"rss_p": 0,
+				"share": 0,
+				"size":  int64(2555572224),
+			},
+			"type": "process",
 		},
-		"mem": common.MapStr{
-			"rss":   11194368,
-			"rss_p": 0,
-			"share": 0,
-			"size":  2555572224,
-		},
-		"type": "process",
 	}
 
-	event2 := common.MapStr{
-		"@timestamp": "2016-01-24T18:35:19.308Z",
-		"beat": common.MapStr{
-			"hostname": "mar",
-			"name":     "my-shipper-1",
+	event2 := &beat.Event{
+		Timestamp: time.Now(),
+		Fields: common.MapStr{
+			"beat": common.MapStr{
+				"hostname": "mar",
+				"name":     "my-shipper-1",
+			},
+			"fs": common.MapStr{
+				"device_name": "devfs",
+				"total":       198656,
+				"used":        198656,
+				"used_p":      1,
+				"free":        0,
+				"avail":       0,
+				"files":       677,
+				"free_files":  0,
+				"mount_point": "/dev",
+			},
+			"type": "process",
 		},
-		"fs": common.MapStr{
-			"device_name": "devfs",
-			"total":       198656,
-			"used":        198656,
-			"used_p":      1,
-			"free":        0,
-			"avail":       0,
-			"files":       677,
-			"free_files":  0,
-			"mount_point": "/dev",
-		},
-		"type": "process",
 	}
 
 	expected1 := common.MapStr{
-		"@timestamp": "2016-01-24T18:35:19.308Z",
 		"proc": common.MapStr{
 			"cpu": common.MapStr{
 				"start_time": "Jan14",
@@ -347,25 +343,21 @@ func TestMultipleIncludeFields(t *testing.T) {
 	}
 
 	expected2 := common.MapStr{
-		"@timestamp": "2016-01-24T18:35:19.308Z",
-		"type":       "process",
+		"type": "process",
 	}
 
 	actual1 := processors.Run(event1)
 	actual2 := processors.Run(event2)
 
-	assert.Equal(t, expected1, actual1)
-	assert.Equal(t, expected2, actual2)
+	assert.Equal(t, expected1, actual1.Fields)
+	assert.Equal(t, expected2, actual2.Fields)
 }
 
 func TestDropEvent(t *testing.T) {
-
-	if testing.Verbose() {
-		logp.LogInit(logp.LOG_DEBUG, "", false, true, []string{"*"})
-	}
+	logp.TestingSetup()
 
 	yml := []map[string]interface{}{
-		map[string]interface{}{
+		{
 			"drop_event": map[string]interface{}{
 				"when": map[string]interface{}{
 					"range": map[string]interface{}{
@@ -380,30 +372,32 @@ func TestDropEvent(t *testing.T) {
 
 	processors := GetProcessors(t, yml)
 
-	event := common.MapStr{
-		"@timestamp": "2016-01-24T18:35:19.308Z",
-		"beat": common.MapStr{
-			"hostname": "mar",
-			"name":     "my-shipper-1",
-		},
-		"proc": common.MapStr{
-			"cpu": common.MapStr{
-				"start_time": "Jan14",
-				"system":     26027,
-				"total":      79390,
-				"total_p":    0,
-				"user":       53363,
+	event := &beat.Event{
+		Timestamp: time.Now(),
+		Fields: common.MapStr{
+			"beat": common.MapStr{
+				"hostname": "mar",
+				"name":     "my-shipper-1",
 			},
-			"name":    "test-1",
-			"cmdline": "/sbin/launchd",
-			"mem": common.MapStr{
-				"rss":   11194368,
-				"rss_p": 0,
-				"share": 0,
-				"size":  2555572224,
+			"proc": common.MapStr{
+				"cpu": common.MapStr{
+					"start_time": "Jan14",
+					"system":     26027,
+					"total":      79390,
+					"total_p":    0,
+					"user":       53363,
+				},
+				"name":    "test-1",
+				"cmdline": "/sbin/launchd",
+				"mem": common.MapStr{
+					"rss":   11194368,
+					"rss_p": 0,
+					"share": 0,
+					"size":  int64(2555572224),
+				},
 			},
+			"type": "process",
 		},
-		"type": "process",
 	}
 
 	processedEvent := processors.Run(event)
@@ -412,43 +406,42 @@ func TestDropEvent(t *testing.T) {
 }
 
 func TestEmptyCondition(t *testing.T) {
-
-	if testing.Verbose() {
-		logp.LogInit(logp.LOG_DEBUG, "", false, true, []string{"*"})
-	}
+	logp.TestingSetup()
 
 	yml := []map[string]interface{}{
-		map[string]interface{}{
+		{
 			"drop_event": map[string]interface{}{},
 		},
 	}
 
 	processors := GetProcessors(t, yml)
 
-	event := common.MapStr{
-		"@timestamp": "2016-01-24T18:35:19.308Z",
-		"beat": common.MapStr{
-			"hostname": "mar",
-			"name":     "my-shipper-1",
-		},
-		"proc": common.MapStr{
-			"cpu": common.MapStr{
-				"start_time": "Jan14",
-				"system":     26027,
-				"total":      79390,
-				"total_p":    0,
-				"user":       53363,
+	event := &beat.Event{
+		Timestamp: time.Now(),
+		Fields: common.MapStr{
+			"beat": common.MapStr{
+				"hostname": "mar",
+				"name":     "my-shipper-1",
 			},
-			"name":    "test-1",
-			"cmdline": "/sbin/launchd",
-			"mem": common.MapStr{
-				"rss":   11194368,
-				"rss_p": 0,
-				"share": 0,
-				"size":  2555572224,
+			"proc": common.MapStr{
+				"cpu": common.MapStr{
+					"start_time": "Jan14",
+					"system":     26027,
+					"total":      79390,
+					"total_p":    0,
+					"user":       53363,
+				},
+				"name":    "test-1",
+				"cmdline": "/sbin/launchd",
+				"mem": common.MapStr{
+					"rss":   11194368,
+					"rss_p": 0,
+					"share": 0,
+					"size":  int64(2555572224),
+				},
 			},
+			"type": "process",
 		},
-		"type": "process",
 	}
 
 	processedEvent := processors.Run(event)
@@ -457,13 +450,10 @@ func TestEmptyCondition(t *testing.T) {
 }
 
 func TestBadCondition(t *testing.T) {
-
-	if testing.Verbose() {
-		logp.LogInit(logp.LOG_DEBUG, "", false, true, []string{"*"})
-	}
+	logp.TestingSetup()
 
 	yml := []map[string]interface{}{
-		map[string]interface{}{
+		{
 			"drop_event": map[string]interface{}{
 				"when": map[string]interface{}{
 					"equal": map[string]string{
@@ -477,7 +467,7 @@ func TestBadCondition(t *testing.T) {
 	config := processors.PluginConfig{}
 
 	for _, action := range yml {
-		c := map[string]common.Config{}
+		c := map[string]*common.Config{}
 
 		for name, actionYml := range action {
 			actionConfig, err := common.NewConfigFrom(actionYml)
@@ -485,24 +475,20 @@ func TestBadCondition(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			c[name] = *actionConfig
+			c[name] = actionConfig
 		}
 		config = append(config, c)
 	}
 
 	_, err := processors.New(config)
 	assert.Error(t, err)
-
 }
 
 func TestMissingFields(t *testing.T) {
-
-	if testing.Verbose() {
-		logp.LogInit(logp.LOG_DEBUG, "", false, true, []string{"*"})
-	}
+	logp.TestingSetup()
 
 	yml := []map[string]interface{}{
-		map[string]interface{}{
+		{
 			"include_fields": map[string]interface{}{
 				"when": map[string]interface{}{
 					"equals": map[string]string{
@@ -516,30 +502,26 @@ func TestMissingFields(t *testing.T) {
 	config := processors.PluginConfig{}
 
 	for _, action := range yml {
-		c := map[string]common.Config{}
+		c := map[string]*common.Config{}
 
 		for name, actionYml := range action {
 			actionConfig, err := common.NewConfigFrom(actionYml)
 			assert.Nil(t, err)
 
-			c[name] = *actionConfig
+			c[name] = actionConfig
 		}
 		config = append(config, c)
 	}
 
 	_, err := processors.New(config)
 	assert.NotNil(t, err)
-
 }
 
 func TestBadConditionConfig(t *testing.T) {
-
-	if testing.Verbose() {
-		logp.LogInit(logp.LOG_DEBUG, "", false, true, []string{"*"})
-	}
+	logp.TestingSetup()
 
 	yml := []map[string]interface{}{
-		map[string]interface{}{
+		{
 			"include_fields": map[string]interface{}{
 				"when": map[string]interface{}{
 					"fake": map[string]string{
@@ -554,26 +536,24 @@ func TestBadConditionConfig(t *testing.T) {
 	config := processors.PluginConfig{}
 
 	for _, action := range yml {
-		c := map[string]common.Config{}
+		c := map[string]*common.Config{}
 
 		for name, actionYml := range action {
 			actionConfig, err := common.NewConfigFrom(actionYml)
 			assert.Nil(t, err)
 
-			c[name] = *actionConfig
+			c[name] = actionConfig
 		}
 		config = append(config, c)
 	}
 
 	_, err := processors.New(config)
 	assert.NotNil(t, err)
-
 }
 
 func TestDropMissingFields(t *testing.T) {
-
 	yml := []map[string]interface{}{
-		map[string]interface{}{
+		{
 			"drop_fields": map[string]interface{}{
 				"fields": []string{"foo.bar", "proc.cpu", "proc.sss", "beat", "mem"},
 			},
@@ -582,41 +562,42 @@ func TestDropMissingFields(t *testing.T) {
 
 	processors := GetProcessors(t, yml)
 
-	event := common.MapStr{
-		"@timestamp": "2016-01-24T18:35:19.308Z",
-		"beat": common.MapStr{
-			"hostname": "mar",
-			"name":     "my-shipper-1",
-		},
-
-		"proc": common.MapStr{
-			"cpu": common.MapStr{
-				"start_time": "Jan14",
-				"system":     26027,
-				"total":      79390,
-				"total_p":    0,
-				"user":       53363,
+	event := &beat.Event{
+		Timestamp: time.Now(),
+		Fields: common.MapStr{
+			"beat": common.MapStr{
+				"hostname": "mar",
+				"name":     "my-shipper-1",
 			},
-			"cmdline": "/sbin/launchd",
+
+			"proc": common.MapStr{
+				"cpu": common.MapStr{
+					"start_time": "Jan14",
+					"system":     26027,
+					"total":      79390,
+					"total_p":    0,
+					"user":       53363,
+				},
+				"cmdline": "/sbin/launchd",
+			},
+			"mem": common.MapStr{
+				"rss":   11194368,
+				"rss_p": 0,
+				"share": 0,
+				"size":  int64(2555572224),
+			},
+			"type": "process",
 		},
-		"mem": common.MapStr{
-			"rss":   11194368,
-			"rss_p": 0,
-			"share": 0,
-			"size":  2555572224,
-		},
-		"type": "process",
 	}
 
 	processedEvent := processors.Run(event)
 
 	expectedEvent := common.MapStr{
-		"@timestamp": "2016-01-24T18:35:19.308Z",
 		"proc": common.MapStr{
 			"cmdline": "/sbin/launchd",
 		},
 		"type": "process",
 	}
 
-	assert.Equal(t, expectedEvent, processedEvent)
+	assert.Equal(t, expectedEvent, processedEvent.Fields)
 }
