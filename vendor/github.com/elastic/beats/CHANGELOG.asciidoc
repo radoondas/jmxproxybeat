@@ -14,6 +14,8 @@ https://github.com/elastic/beats/compare/v6.2.2...6.2[Check the HEAD diff]
 
 *Affecting all Beats*
 
+- Fix conditions checking on autodiscover Docker labels. {pull}6412[6412]
+
 *Auditbeat*
 
 *Filebeat*
@@ -30,7 +32,8 @@ https://github.com/elastic/beats/compare/v6.2.2...6.2[Check the HEAD diff]
 
 *Affecting all Beats*
 
-- Fix infinite loop when event unmarshal fails in Kubernetes pod watcher. {pull}6353[6353]
+- Avoid panic errors when processing nil Pod events in add_kubernetes_metadata. {issue}6372[6372]
+- Fix infinite failure on Kubernetes watch {pull}6504[6504]
 
 *Auditbeat*
 
@@ -39,6 +42,8 @@ https://github.com/elastic/beats/compare/v6.2.2...6.2[Check the HEAD diff]
 *Heartbeat*
 
 *Metricbeat*
+
+- Fix Kubernetes overview dashboard views for non default time ranges. {issue}6395{6395}
 
 *Packetbeat*
 
@@ -88,6 +93,7 @@ https://github.com/elastic/beats/compare/v6.2.1...v6.2.2[View commits]
 *Affecting all Beats*
 
 - Add logging when monitoring cannot connect to Elasticsearch. {pull}6365[6365]
+- Fix infinite loop when event unmarshal fails in Kubernetes pod watcher. {pull}6353[6353]
 
 *Filebeat*
 
