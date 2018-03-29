@@ -3,7 +3,11 @@ language: go
 go:
 - 1.9.4
 
-sudo: false
+sudo: required
+dist: trusty
+
+os:
+  - linux
 
 before_install:
   # Redo the travis setup but with the radoondas/jmxproxybeat path. This is needed so the package path is correct
