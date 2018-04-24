@@ -14,8 +14,6 @@ https://github.com/elastic/beats/compare/v6.2.2...6.2[Check the HEAD diff]
 
 *Affecting all Beats*
 
-- Fix conditions checking on autodiscover Docker labels. {pull}6412[6412]
-
 *Auditbeat*
 
 *Filebeat*
@@ -32,20 +30,21 @@ https://github.com/elastic/beats/compare/v6.2.2...6.2[Check the HEAD diff]
 
 *Affecting all Beats*
 
-- Avoid panic errors when processing nil Pod events in add_kubernetes_metadata. {issue}6372[6372]
-- Fix infinite failure on Kubernetes watch {pull}6504[6504]
-
 *Auditbeat*
 
+- Add hex decoding for the name field in audit path records. {pull}6687[6687]
+
 *Filebeat*
+
+- Fix panic when log prospector configuration fails to load. {issue}6800[6800]
 
 *Heartbeat*
 
 *Metricbeat*
 
-- Fix Kubernetes overview dashboard views for non default time ranges. {issue}6395{6395}
-
 *Packetbeat*
+
+- HTTP parses successfully on empty status phrase. {issue}6176[6176]
 
 *Winlogbeat*
 
@@ -83,6 +82,29 @@ https://github.com/elastic/beats/compare/v6.2.2...6.2[Check the HEAD diff]
 
 
 ////////////////////////////////////////////////////////////
+
+
+[[release-notes-6.2.3]]
+=== Beats version 6.2.3
+https://github.com/elastic/beats/compare/v6.2.2...v6.2.3[View commits]
+
+==== Breaking changes
+
+*Affecting all Beats*
+
+- Fix conditions checking on autodiscover Docker labels. {pull}6412[6412]
+
+==== Bugfixes
+
+*Affecting all Beats*
+
+- Avoid panic errors when processing nil Pod events in add_kubernetes_metadata. {issue}6372[6372]
+- Fix infinite failure on Kubernetes watch {pull}6504[6504]
+
+*Metricbeat*
+
+- Fix Kubernetes overview dashboard views for non default time ranges. {issue}6395{6395}
+
 
 [[release-notes-6.2.2]]
 === Beats version 6.2.2
@@ -262,6 +284,7 @@ https://github.com/elastic/beats/compare/v6.0.1...v6.1.0[View commits]
 - Fix console color output for Windows. {issue}5611[5611]
 - Fix logstash output debug message. {pull}5799{5799]
 - Fix isolation of modules when merging local and global field settings. {issue}5795[5795]
+- Report ephemeral ID and uptime in monitoring events on all platforms {pull}6501[6501]
 
 *Filebeat*
 
@@ -278,6 +301,8 @@ https://github.com/elastic/beats/compare/v6.0.1...v6.1.0[View commits]
 - Fix `ProcState` on Linux and FreeBSD when process names contain parentheses. {pull}5775[5775]
 - Fix incorrect `Mem.Used` calculation under linux. {pull}5775[5775]
 - Fix `open_file_descriptor_count` and `max_file_descriptor_count` lost in zookeeper module {pull}5902[5902]
+- Fix system process metricset for kernel processes. {issue}5700[5700]
+- Change kubernetes.node.cpu.allocatable.cores to float. {pull}6130[6130]
 
 *Packetbeat*
 
@@ -285,11 +310,16 @@ https://github.com/elastic/beats/compare/v6.0.1...v6.1.0[View commits]
 - Fix http parse to allow to parse get request with space in the URI. {pull}5495[5495]
 - Fix mysql SQL parser to trim `\r` from Windows Server `SELECT\r\n\t1`. {pull}5572[5572]
 - Fix corruption when parsing repeated headers in an HTTP request or response. {pull}6325[6325]
+- Fix panic when parsing partial AMQP messages. {pull}6384[6384]
+- Fix out of bounds access to slice in MongoDB parser. {pull}6256[6256]
+- Fix sniffer hanging on exit under Linux. {pull}6535[6535]
+- Fix bounds check error in http parser causing a panic. {pull}6750[6750]
 
 *Winlogbeat*
 
 - Fix the registry file. It was not correctly storing event log names, and
   upon restart it would begin reading at the start of each event log. {issue}5813[5813]
+- Fix config validation to allow `event_logs.processors`. [pull]6217[6217]
 
 ==== Added
 
@@ -345,6 +375,8 @@ https://github.com/elastic/beats/compare/v6.0.1...v6.1.0[View commits]
 *Packetbeat*
 
 - Add support for decoding the TLS envelopes. {pull}5476[5476]
+- HTTP parses successfully on empty status phrase. {issue}6176[6176]
+- HTTP parser supports broken status line. {pull}6631[6631]
 
 [[release-notes-6.0.1]]
 === Beats version 6.0.1

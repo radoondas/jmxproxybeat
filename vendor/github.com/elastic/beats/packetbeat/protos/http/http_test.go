@@ -4,6 +4,7 @@ package http
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"regexp"
 	"strings"
@@ -393,6 +394,24 @@ func TestHttpParser_Response_HTTP_10_without_content_length(t *testing.T) {
 	assert.Equal(t, 4, message.contentLength)
 }
 
+func TestHttpParser_Response_without_phrase(t *testing.T) {
+	for idx, testCase := range []struct {
+		ok, complete bool
+		code         int
+		request      string
+	}{
+		{true, true, 200, "HTTP/1.1 200 \r\nContent-Length: 0\r\n\r\n"},
+		{true, true, 301, "HTTP/1.1 301\r\nContent-Length: 0\r\n\r\n"},
+	} {
+		msg := fmt.Sprintf("failed test case[%d]: \"%s\"", idx, testCase.request)
+		r, ok, complete := testParse(nil, testCase.request)
+		assert.Equal(t, testCase.ok, ok, msg)
+		assert.Equal(t, testCase.complete, complete, msg)
+		assert.Equal(t, testCase.code, int(r.statusCode), msg)
+		assert.Equal(t, "", string(r.statusPhrase), msg)
+	}
+}
+
 func TestHttpParser_splitResponse_midBody(t *testing.T) {
 	data1 := "HTTP/1.1 200 OK\r\n" +
 		"Date: Tue, 14 Aug 2012 22:31:45 GMT\r\n" +
@@ -573,8 +592,11 @@ func TestHttpParser_PhraseContainsSpaces(t *testing.T) {
 		"\r\n" +
 		"xx"
 	r, ok, complete = testParse(nil, broken)
-	assert.False(t, ok)
-	assert.False(t, complete)
+	assert.True(t, ok)
+	assert.True(t, complete)
+	assert.Equal(t, 2, r.contentLength)
+	assert.Equal(t, "", string(r.statusPhrase))
+	assert.Equal(t, 500, int(r.statusCode))
 }
 
 func TestEatBodyChunked(t *testing.T) {
