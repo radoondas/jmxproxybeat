@@ -9,7 +9,7 @@ import (
 	"github.com/elastic/beats/libbeat/common"
 	"github.com/elastic/beats/libbeat/logp"
 
-	cfg "github.com/radoondas/jmxproxybeat/config"
+	"github.com/radoondas/jmxproxybeat/config"
 )
 
 const (
@@ -17,23 +17,23 @@ const (
 )
 
 type Jmxproxybeat struct {
-	config cfg.Config
+	config config.Config
 	done   chan struct{}
+	client beat.Client
 	hosts  []*url.URL
 	auth   bool
-	client beat.Client
 }
 
 // Creates beater
-func New(b *beat.Beat, rawCfg *common.Config) (beat.Beater, error) {
-	config := cfg.DefaultConfig
-	if err := rawCfg.Unpack(&config); err != nil {
-		return nil, fmt.Errorf("Error reading config file: %v", err)
+func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
+	c := config.DefaultConfig
+	if err := cfg.Unpack(&c); err != nil {
+		return nil, fmt.Errorf("error reading config file: %v", err)
 	}
 
 	bt := &Jmxproxybeat{
 		done:   make(chan struct{}),
-		config: config,
+		config: c,
 		auth:   true,
 	}
 
@@ -52,19 +52,19 @@ func (bt *Jmxproxybeat) init(b *beat.Beat) error {
 	for i := 0; i < len(bt.config.Hosts); i++ {
 		h, err := url.Parse(bt.config.Hosts[i])
 		if err != nil {
-			logp.Err("Invalid JMX hosts: %v", err)
+			logp.NewLogger(selector).Error("Invalid JMX hosts: %v", err)
 			return err
 		}
 		bt.hosts[i] = h
 	}
 
 	if bt.config.SSL.CAfile == "" {
-		logp.Info("CAFile IS NOT set.")
+		logp.NewLogger(selector).Info("CAFile IS NOT set.")
 	}
 
 	//Disable authentication when no username or password is set
 	if bt.config.Authentication.Username == "" || bt.config.Authentication.Password == "" {
-		logp.Info("One of username or password IS NOT set.")
+		logp.NewLogger(selector).Info("One of username or password IS NOT set.")
 		bt.auth = false
 	}
 
@@ -72,7 +72,7 @@ func (bt *Jmxproxybeat) init(b *beat.Beat) error {
 }
 
 func (bt *Jmxproxybeat) Run(b *beat.Beat) error {
-	logp.Info("Jmxproxybeat is running! Hit CTRL-C to stop it.")
+	logp.NewLogger(selector).Info("Jmxproxybeat is running! Hit CTRL-C to stop it.")
 
 	var err error
 	bt.client, err = b.Publisher.Connect()
@@ -96,7 +96,7 @@ func (bt *Jmxproxybeat) Run(b *beat.Beat) error {
 
 				err := bt.GetJMX(*u)
 				if err != nil {
-					logp.Err("Error while getttig JMX: %v", err)
+					logp.NewLogger(selector).Error("Error while getting JMX: %v", err)
 				}
 			}
 		GotoFinish:
@@ -108,7 +108,7 @@ func (bt *Jmxproxybeat) Run(b *beat.Beat) error {
 }
 
 func (bt *Jmxproxybeat) Stop() {
-	logp.Info("Stopping Jmxproxybeat")
+	logp.NewLogger(selector).Info("Stopping Jmxproxybeat")
 	if bt.done != nil {
 		bt.client.Close()
 		close(bt.done)

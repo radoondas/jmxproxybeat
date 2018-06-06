@@ -31,7 +31,7 @@ func (bt *Jmxproxybeat) GetJMX(u url.URL) error {
 
 					err := bt.GetJMXObject(u, bt.config.Beans[i].Name, bt.config.Beans[i].Attributes[j].Name, bt.config.Beans[i].Attributes[j].Keys[k], bt.config.SSL.CAfile)
 					if err != nil {
-						logp.Err("Error requesting JMX: %v", err)
+						logp.NewLogger(selector).Error("Error requesting JMX: %v", err)
 					}
 				}
 			} else {
@@ -40,7 +40,7 @@ func (bt *Jmxproxybeat) GetJMX(u url.URL) error {
 
 						err := bt.GetJMXObject(u, bt.config.Beans[i].Name, bt.config.Beans[i].Attributes[j].Name, bt.config.Beans[i].Keys[k], bt.config.SSL.CAfile)
 						if err != nil {
-							logp.Err("Error requesting JMX: %v", err)
+							logp.NewLogger(selector).Error("Error requesting JMX: %v", err)
 						}
 					}
 
@@ -48,7 +48,7 @@ func (bt *Jmxproxybeat) GetJMX(u url.URL) error {
 
 					err := bt.GetJMXObject(u, bt.config.Beans[i].Name, bt.config.Beans[i].Attributes[j].Name, "", bt.config.SSL.CAfile)
 					if err != nil {
-						logp.Err("Error requesting JMX: %v", err)
+						logp.NewLogger(selector).Error("Error requesting JMX: %v", err)
 					}
 				}
 			}
@@ -71,17 +71,16 @@ func (bt *Jmxproxybeat) GetJMXObject(u url.URL, name, attribute, key string, CAF
 		}
 		ok := tlsConfig.RootCAs.AppendCertsFromPEM(pemData)
 		if !ok {
-			logp.Err("Unable to load CA file")
+			logp.NewLogger(selector).Error("Unable to load CA file")
 			panic("Couldn't load PEM data")
 		}
 	}
 
-	//client := &http.Client{}
 	client := &http.Client{Transport: transport}
 
 	ParsedUrl, err := url.Parse(u.String())
 	if err != nil {
-		logp.Err("Unable to parse URL String")
+		logp.NewLogger(selector).Error("Unable to parse URL String")
 		panic(err)
 	}
 
@@ -105,7 +104,7 @@ func (bt *Jmxproxybeat) GetJMXObject(u url.URL, name, attribute, key string, CAF
 
 	ParsedUrl.RawQuery = parameters.Encode()
 
-	logp.Debug(selector, "Requesting JMX: %s", ParsedUrl.String())
+	logp.NewLogger(selector).Debug("Requesting JMX: %s", ParsedUrl.String())
 
 	req, err := http.NewRequest("GET", ParsedUrl.String(), nil)
 
@@ -143,8 +142,7 @@ func (bt *Jmxproxybeat) GetJMXObject(u url.URL, name, attribute, key string, CAF
 		},
 	}
 	bt.client.Publish(event)
-	logp.Info("Event: %+v", event)
-	//logp.NewLogger()Info("Event: %+v", event)
+	logp.NewLogger(selector).Debug("Event: %+v", event)
 
 	return nil
 }
