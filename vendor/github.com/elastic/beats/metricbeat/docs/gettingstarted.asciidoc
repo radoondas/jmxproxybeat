@@ -4,16 +4,7 @@
 Metricbeat helps you monitor your servers and the services they host by
 collecting metrics from the operating system and services.
 
-To get started with your own Metricbeat setup, install and configure these
-related products:
-
- * Elasticsearch for storage and indexing the data.
- * Kibana for the UI.
- * Logstash (optional) for inserting data into Elasticsearch.
-
-See {libbeat}/getting-started.html[Getting Started with Beats and the Elastic Stack] for more information.
-
-After installing the Elastic Stack, read the following topics to learn how to install, configure, and run Metricbeat:
+include::../../libbeat/docs/shared-getting-started-intro.asciidoc[]
 
 * <<metricbeat-installation>>
 * <<metricbeat-configuration>>
@@ -130,8 +121,7 @@ https://www.elastic.co/downloads/beats/metricbeat[downloads page].
 . Rename the `metricbeat-<version>-windows` directory to `Metricbeat`.
 
 . Open a PowerShell prompt as an Administrator (right-click the PowerShell icon
-and select *Run As Administrator*). If you are running Windows XP, you may need
-to download and install PowerShell.
+and select *Run As Administrator*).
 
 . From the PowerShell prompt, run the following commands to install Metricbeat
 as a Windows service:

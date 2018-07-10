@@ -334,6 +334,18 @@ func TestMaxDocSize(t *testing.T) {
 	assert.Equal(t, "\"1234 ...\n\"123\"\n\"12\"", res["response"])
 }
 
+func TestOpCodeNames(t *testing.T) {
+	for _, testData := range []struct {
+		code     int32
+		expected string
+	}{
+		{1, "OP_REPLY"},
+		{-1, "(value=-1)"},
+	} {
+		assert.Equal(t, testData.expected, opCode(testData.code).String())
+	}
+}
+
 // Test for a (recovered) panic parsing document length in request/response messages
 func TestDocumentLengthBoundsChecked(t *testing.T) {
 	logp.TestingSetup(logp.WithSelectors("mongodb", "mongodbdetailed"))
