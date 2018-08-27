@@ -25,6 +25,7 @@ metricbeat.modules:
   metricsets: ["status"]
   period: 10s
   hosts: ["localhost:5601"]
+  basepath: ""
   enabled: true
 ----
 
@@ -35,7 +36,11 @@ This module supports TLS connection when using `ssl` config field, as described 
 
 The following metricsets are available:
 
+* <<metricbeat-metricset-kibana-stats,stats>>
+
 * <<metricbeat-metricset-kibana-status,status>>
+
+include::kibana/stats.asciidoc[]
 
 include::kibana/status.asciidoc[]
 

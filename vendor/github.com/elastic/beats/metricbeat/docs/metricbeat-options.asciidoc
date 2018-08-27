@@ -139,6 +139,7 @@ the `set2` metricset will be fetched every 2 minutes:
 
 
 [float]
+[[module-config-options]]
 === Standard config options
 
 You can specify the following options for any Metricbeat module. Some modules
@@ -156,8 +157,7 @@ The name of the module to run. For documentation about each module, see the
 
 A list of metricsets to execute. Make sure that you only list metricsets that
 are available in the module. It is not possible to reference metricsets from
-other modules. For a list of available metricsets, see the documentation for the
-module.
+other modules. For a list of available metricsets, see <<metricbeat-modules>>.
 
 [float]
 ==== `enabled`
@@ -216,3 +216,27 @@ The username to use for basic authentication.
 ==== `password`
 
 The password to use for basic authentication.
+
+[float]
+==== `headers`
+
+A list of headers to use with the HTTP request. For example:
+
+[source,yaml]
+----
+headers:
+  Cookie: abcdef=123456
+  My-Custom-Header: my-custom-value
+----
+
+[float]
+==== `bearer_token_file`
+
+If defined, Metricbeat will read the contents of the file once at initialization
+and then use the value in an HTTP Authorization header.
+
+[float]
+==== `basepath`
+
+An optional base path to be used in HTTP URIs. If defined, Metricbeat will insert this value
+as the first segment in the HTTP URI path.

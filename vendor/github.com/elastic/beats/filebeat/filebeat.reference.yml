@@ -82,6 +82,40 @@ filebeat.modules:
     # can be added under this section.
     #input:
 
+#---------------------------- elasticsearch Module ---------------------------
+- module: elasticsearch
+  # Server log
+  server:
+    enabled: true
+
+    # Set custom paths for the log files. If left empty,
+    # Filebeat will choose the paths depending on your OS.
+    #var.paths:
+
+  gc:
+    enabled: true
+    # Set custom paths for the log files. If left empty,
+    # Filebeat will choose the paths depending on your OS.
+    #var.paths:
+
+  audit:
+    enabled: true
+    # Set custom paths for the log files. If left empty,
+    # Filebeat will choose the paths depending on your OS.
+    #var.paths:
+
+  slowlog:
+    enabled: true
+    # Set custom paths for the log files. If left empty,
+    # Filebeat will choose the paths depending on your OS.
+    #var.paths:
+
+  deprecation:
+    enabled: true
+    # Set custom paths for the log files. If left empty,
+    # Filebeat will choose the paths depending on your OS.
+    #var.paths:
+
 #------------------------------- Icinga Module -------------------------------
 #- module: icinga
   # Main logs
@@ -160,6 +194,18 @@ filebeat.modules:
     # Filebeat will choose the paths depending on your OS.
     #var.paths:
 
+    # Convert the timestamp to UTC. Requires Elasticsearch >= 6.1.
+    #var.convert_timezone: false
+
+#------------------------------- kibana Module -------------------------------
+- module: kibana
+  # All logs
+  log:
+    enabled: true
+
+    # Set custom paths for the log files. If left empty,
+    # Filebeat will choose the paths depending on your OS.
+    #var.paths:
 
 #------------------------------ logstash Module ------------------------------
 #- module: logstash
@@ -418,7 +464,7 @@ filebeat.inputs:
 
   ### Multiline options
 
-  # Mutiline can be used for log messages spanning multiple lines. This is common
+  # Multiline can be used for log messages spanning multiple lines. This is common
   # for Java Stack Traces or C-Line Continuation
 
   # The regexp Pattern that has to be matched. The example pattern matches all lines starting with [
@@ -450,7 +496,7 @@ filebeat.inputs:
   # overwrites the pipeline option from the Elasticsearch output.
   #pipeline:
 
-  # If symlinks is enabled, symlinks are opened and harvested. The harvester is openening the
+  # If symlinks is enabled, symlinks are opened and harvested. The harvester is opening the
   # original for harvesting but will report the symlink name as source.
   #symlinks: false
 
@@ -567,6 +613,36 @@ filebeat.inputs:
   # The number of seconds of inactivity before a remote connection is closed.
   #timeout: 300s
 
+  # Use SSL settings for TCP.
+  #ssl.enabled: true
+
+  # List of supported/valid TLS versions. By default all TLS versions 1.0 up to
+  # 1.2 are enabled.
+  #ssl.supported_protocols: [TLSv1.0, TLSv1.1, TLSv1.2]
+
+  # SSL configuration. By default is off.
+  # List of root certificates for client verifications
+  #ssl.certificate_authorities: ["/etc/pki/root/ca.pem"]
+
+  # Certificate for SSL server authentication.
+  #ssl.certificate: "/etc/pki/client/cert.pem"
+
+  # Server Certificate Key,
+  #ssl.key: "/etc/pki/client/cert.key"
+
+  # Optional passphrase for decrypting the Certificate Key.
+  #ssl.key_passphrase: ''
+
+  # Configure cipher suites to be used for SSL connections.
+  #ssl.cipher_suites: []
+
+  # Configure curve types for ECDHE based cipher suites.
+  #ssl.curve_types: []
+
+  # Configure what types of client authentication are supported. Valid options
+  # are `none`, `optional`, and `required`. Default is required.
+  #ssl.client_authentication: "required"
+
 #------------------------------ Syslog input --------------------------------
 # Experimental: Config options for the Syslog input
 # Accept RFC3164 formatted syslog event via UDP.
@@ -595,6 +671,50 @@ filebeat.inputs:
 
     # The number of seconds of inactivity before a remote connection is closed.
     #timeout: 300s
+
+    # Use SSL settings for TCP.
+    #ssl.enabled: true
+
+    # List of supported/valid TLS versions. By default all TLS versions 1.0 up to
+    # 1.2 are enabled.
+    #ssl.supported_protocols: [TLSv1.0, TLSv1.1, TLSv1.2]
+
+    # SSL configuration. By default is off.
+    # List of root certificates for client verifications
+    #ssl.certificate_authorities: ["/etc/pki/root/ca.pem"]
+
+    # Certificate for SSL server authentication.
+    #ssl.certificate: "/etc/pki/client/cert.pem"
+
+    # Server Certificate Key,
+    #ssl.key: "/etc/pki/client/cert.key"
+
+    # Optional passphrase for decrypting the Certificate Key.
+    #ssl.key_passphrase: ''
+
+    # Configure cipher suites to be used for SSL connections.
+    #ssl.cipher_suites: []
+
+    # Configure curve types for ECDHE based cipher suites.
+    #ssl.curve_types: []
+
+    # Configure what types of client authentication are supported. Valid options
+    # are `none`, `optional`, and `required`. Default is required.
+    #ssl.client_authentication: "required"
+
+#------------------------------ Docker input --------------------------------
+# Experimental: Docker input reads and parses `json-file` logs from Docker
+#- type: docker
+  #enabled: false
+
+  # Combine partial lines flagged by `json-file` format
+  #combine_partials: true
+
+  # Use this to read from all containers, replace * with a container id to read from one:
+  #containers:
+  #  stream: all # can be all, stdout or stderr
+  #  ids:
+  #    - '*'
 
 #========================== Filebeat autodiscover ==============================
 
@@ -792,6 +912,14 @@ filebeat.inputs:
 #       - from: "a"
 #         to: "b"
 #
+# The following example tokenizes the string into fields:
+#
+#processors:
+#- dissect:
+#    tokenizer: "%{key1} - %{key2}"
+#    field: "message"
+#    target_prefix: "dissect"
+#
 # The following example enriches each event with metadata from the cloud
 # provider about the host machine. It works on EC2, GCE, DigitalOcean,
 # Tencent Cloud, and Alibaba Cloud.
@@ -830,7 +958,13 @@ filebeat.inputs:
 #
 #processors:
 #- add_docker_metadata: ~
-#- add_host_metadata: ~
+#
+# The following example enriches each event with host metadata.
+#
+#processors:
+#- add_host_metadata:
+#   netinfo.enabled: false
+#
 
 #============================= Elastic Cloud ==================================
 
@@ -862,6 +996,9 @@ output.elasticsearch:
 
   # Set gzip compression level.
   #compression_level: 0
+
+  # Configure escaping html symbols in strings.
+  #escape_html: true
 
   # Optional protocol and basic auth credentials.
   #protocol: "https"
@@ -967,6 +1104,9 @@ output.elasticsearch:
 
   # Set gzip compression level.
   #compression_level: 3
+
+  # Configure escaping html symbols in strings.
+  #escape_html: true
 
   # Optional maximum time to live for a connection to Logstash, after which the
   # connection will be re-established.  A value of `0s` (the default) will
@@ -1079,9 +1219,16 @@ output.elasticsearch:
   #username: ''
   #password: ''
 
-  # Kafka version filebeat is assumed to run against. Defaults to the oldest
-  # supported stable version (currently version 0.8.2.0)
-  #version: 0.8.2
+  # Kafka version filebeat is assumed to run against. Defaults to the "1.0.0".
+  #version: '1.0.0'
+
+  # Configure JSON encoding
+  #codec.json:
+    # Pretty print json event
+    #pretty: false
+
+    # Configure escaping html symbols in strings.
+    #escape_html: true
 
   # Metadata update configuration. Metadata do contain leader information
   # deciding which broker to use when publishing.
@@ -1128,6 +1275,10 @@ output.elasticsearch:
   # Sets the output compression codec. Must be one of none, snappy and gzip. The
   # default is gzip.
   #compression: gzip
+
+  # Set the compression level. Currently only gzip provides a compression level
+  # between 0 and 9. The default value is chosen by the compression algorithm.
+  #compression_level: 4
 
   # The maximum permitted size of JSON-encoded messages. Bigger messages will be
   # dropped. The default value is 1000000 (bytes). This value should be equal to
@@ -1185,6 +1336,14 @@ output.elasticsearch:
   # Boolean flag to enable or disable the output module.
   #enabled: true
 
+  # Configure JSON encoding
+  #codec.json:
+    # Pretty print json event
+    #pretty: false
+
+    # Configure escaping html symbols in strings.
+    #escape_html: true
+
   # The list of Redis servers to connect to. If load balancing is enabled, the
   # events are distributed to the servers in the list. If one server becomes
   # unreachable, the events are distributed to the reachable servers only.
@@ -1231,6 +1390,17 @@ output.elasticsearch:
   # all events are published. Set max_retries to a value less than 0 to retry
   # until all events are published. The default is 3.
   #max_retries: 3
+
+  # The number of seconds to wait before trying to reconnect to Redis
+  # after a network error. After waiting backoff.init seconds, the Beat
+  # tries to reconnect. If the attempt fails, the backoff timer is increased
+  # exponentially up to backoff.max. After a successful connection, the backoff
+  # timer is reset. The default is 1s.
+  #backoff.init: 1s
+
+  # The maximum number of seconds to wait before attempting to connect to
+  # Redis after a network error. The default is 60s.
+  #backoff.max: 60s
 
   # The maximum number of events to bulk in a single Redis request or pipeline.
   # The default is 2048.
@@ -1286,6 +1456,14 @@ output.elasticsearch:
   # Boolean flag to enable or disable the output module.
   #enabled: true
 
+  # Configure JSON encoding
+  #codec.json:
+    # Pretty print json event
+    #pretty: false
+
+    # Configure escaping html symbols in strings.
+    #escape_html: true
+
   # Path to the directory where to save the generated files. The option is
   # mandatory.
   #path: "/tmp/filebeat"
@@ -1313,8 +1491,13 @@ output.elasticsearch:
   # Boolean flag to enable or disable the output module.
   #enabled: true
 
-  # Pretty print json event
-  #pretty: false
+  # Configure JSON encoding
+  #codec.json:
+    # Pretty print json event
+    #pretty: false
+
+    # Configure escaping html symbols in strings.
+    #escape_html: true
 
 #================================= Paths ======================================
 
@@ -1411,6 +1594,22 @@ output.elasticsearch:
 
 # Path to fields.yml file to generate the template
 #setup.template.fields: "${path.config}/fields.yml"
+
+# A list of fields to be added to the template and Kibana index pattern. Also
+# specify setup.template.overwrite: true to overwrite the existing template.
+# This setting is experimental.
+#setup.template.append_fields:
+#- name: field_name
+#  type: field_type
+
+# Enable json template loading. If this is enabled, the fields.yml is ignored.
+#setup.template.json.enabled: false
+
+# Path to the json template file
+#setup.template.json.path: "${path.config}/template.json"
+
+# Name under which the template is stored in Elasticsearch
+#setup.template.json.name: ""
 
 # Overwrite existing template
 #setup.template.overwrite: false
@@ -1628,6 +1827,9 @@ logging.files:
   # never, once, and freely. Default is never.
   #ssl.renegotiation: never
 
+  #metrics.period: 10s
+  #state.period: 1m
+
 #================================ HTTP Endpoint ======================================
 # Each beat can expose internal metrics through a HTTP endpoint. For security
 # reasons the endpoint is disabled by default. This feature is currently experimental.
@@ -1642,3 +1844,8 @@ logging.files:
 
 # Port on which the HTTP endpoint will bind. Default is 5066.
 #http.port: 5066
+
+#============================= Process Security ================================
+
+# Enable or disable seccomp system call filtering on Linux. Default is enabled.
+#seccomp.enabled: true

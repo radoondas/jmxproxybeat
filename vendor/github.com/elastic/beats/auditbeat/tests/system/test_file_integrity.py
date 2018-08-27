@@ -1,10 +1,5 @@
-import sys
-import os
-import shutil
 import time
-import unittest
 from auditbeat import *
-from beat.beat import INTEGRATION_TESTS
 
 
 # Escapes a path to match what's printed in the logs
@@ -111,6 +106,8 @@ class Test(BaseTest):
             self.wait_log_contains("\"deleted\"")
             self.wait_log_contains("\"path\": \"{0}\"".format(escape_path(subdir)), ignore_case=True)
             self.wait_output(3)
+            self.wait_until(lambda: any(
+                'file.path' in obj and obj['file.path'].lower() == subdir.lower() for obj in self.read_output()))
 
             proc.check_kill_and_wait()
             self.assert_no_logged_warnings()
@@ -169,6 +166,8 @@ class Test(BaseTest):
 
             self.wait_log_contains("\"path\": \"{0}\"".format(escape_path(file2)), ignore_case=True)
             self.wait_output(4)
+            self.wait_until(lambda: any(
+                'file.path' in obj and obj['file.path'].lower() == subdir2.lower() for obj in self.read_output()))
 
             proc.check_kill_and_wait()
             self.assert_no_logged_warnings()

@@ -23,7 +23,7 @@ class ComposeMixin(object):
     COMPOSE_PROJECT_DIR = '.'
 
     # timeout waiting for health (seconds)
-    COMPOSE_TIMEOUT = 60
+    COMPOSE_TIMEOUT = 300
 
     @classmethod
     def compose_up(cls):
@@ -31,6 +31,9 @@ class ComposeMixin(object):
         Ensure *only* the services defined under `COMPOSE_SERVICES` are running and healthy
         """
         if not INTEGRATION_TESTS or not cls.COMPOSE_SERVICES:
+            return
+
+        if os.environ.get('NO_COMPOSE'):
             return
 
         def print_logs(container):

@@ -7,8 +7,6 @@ This file is generated! See scripts/docs_collector.py
 
 experimental[]
 
-== kvm module
-
 This is the kvm module.
 
 
@@ -24,7 +22,7 @@ in <<configuration-metricbeat>>. Here is an example configuration:
 metricbeat.modules:
 - module: kvm
   metricsets: ["dommemstat"]
-  enabled: false
+  enabled: true
   period: 10s
   hosts: ["localhost"]
 
